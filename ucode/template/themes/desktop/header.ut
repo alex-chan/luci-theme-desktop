@@ -28,6 +28,7 @@
 		pathStr == 'admin' || pathStr == 'admin/status' || pathStr == 'admin/status/overview' ||
 		pathStr == 'admin/status/overview/'
 	);
+	const bodyModeClass = isEmbed ? 'is-embed' : (isDesktop ? 'is-desktop' : 'is-app');
 -%}
 <!DOCTYPE html>
 <html lang="{{ dispatcher.lang }}">
@@ -86,7 +87,7 @@
 	</script>
 	<script src="{{ resource }}/luci.js?v={{ version.luciversion }}"></script>
 </head>
-<body class="lang_{{ dispatcher.lang }} {% if (isEmbed): %}is-embed{% elseif (isDesktop): %}is-desktop{% else %}is-app{% endif %} {% if (ctx.authsession): %}logged-in{% endif %}"
+<body class="lang_{{ dispatcher.lang }} {{ bodyModeClass }} {% if (ctx.authsession): %}logged-in{% endif %}"
 	data-page="{{ entityencode(join('-', ctx.request_path), true) }}"
 	data-hostname="{{ hostname }}"
 	data-model="{{ model }}">

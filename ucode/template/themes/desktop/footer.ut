@@ -18,7 +18,8 @@
 	{% if (isEmbed): %}
 		</div><!-- /.container -->
 	</div><!-- /.embed-content -->
-	{% elseif (!isDesktop): %}
+	{% endif %}
+	{% if (!isEmbed && !isDesktop): %}
 					</div><!-- /.container -->
 				</div><!-- /.app-win-content -->
 			</div><!-- /.app-win-body -->
