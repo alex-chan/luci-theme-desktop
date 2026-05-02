@@ -162,27 +162,139 @@ function pollConntrack() {
 	if (typeof L === 'undefined' || !L.resolveDefault) return;
 	L.resolveDefault(L.ubus('luci', 'getConntrackCount'), {}).then(function(ct) {
 		if (!ct) return;
-		setVal('dwConns', (ct.count || '--') + ' / ' + (ct.limit || '--'));
-		// Estimate TCP/UDP from percentage (exact split requires /proc)
+		setVal('dwConns', (ct.count || 0) + ' / ' + (ct.limit || '?'));
 	}).catch(function() {});
-	// Fallback: read /proc/sys/net/netfilter/nf_conntrack_count via fs
-	L.resolveDefault(L.ubus('file', 'read', { path: '/proc/sys/net/netfilter/nf_conntrack_count' }), {}).then(function(r) {
-		if (r && r.data) setVal('dwConns', r.data.trim());
-	}).catch(function() {});
-	L.resolveDefault(L.ubus('file', 'exec', { command: '/bin/sh', params: ['-c', 'cat /proc/net/nf_conntrack 2>/dev/null | grep -c tcp'] }), {}).then(function(r) {
-		if (r && r.stdout) setVal('dwConnTCP', r.stdout.trim());
-	}).catch(function() {});
-	L.resolveDefault(L.ubus('file', 'exec', { command: '/bin/sh', params: ['-c', 'cat /proc/net/nf_conntrack 2>/dev/null | grep -c udp'] }), {}).then(function(r) {
-		if (r && r.stdout) setVal('dwConnUDP', r.stdout.trim());
+	// TCP/UDP counts via /proc
+	L.resolveDefault(L.ubus('file', 'exec', {
+		command: '/bin/sh', params: ['-c',
+		'echo "$(grep -c tcp /proc/net/nf_conntrack 2>/dev/null || echo 0)|$(grep -c udp /proc/net/nf_conntrack 2>/dev/null || echo 0)"']
+	}), {}).then(function(r) {
+		if (r && r.stdout) {
+			var parts = r.stdout.trim().split('|');
+			if (parts[0]) setVal('dwConnTCP', parts[0]);
+			if (parts[1]) setVal('dwConnUDP', parts[1]);
+		}
 	}).catch(function() {});
 }
 
-/* ===== Start Polling ===== */
-setTimeout(function() { pollBoard(); }, 600);
-setTimeout(function() { pollSysInfo(); pollNetwork(); pollConntrack(); }, 900);
+/* ===== ubus API: WiFi Clients ===== */
+function pollWifi() {
+	if (typeof L === 'undefined' || !L.resolveDefault) return;
+	L.resolveDefault(L.ubus('iwinfo', 'devices'), {}).then(function(devs) {
+		var body = document.getElementById('dwWifiBody');
+		if (!body) return;
+		if (!devs || !devs.devices || !devs.devices.length) {
+			body.innerHTML = '<div class="dw-row"><span class="dw-label" style="opacity:.5">No WiFi</span></div>';
+			return;
+		}
+		var promises = devs.devices.map(function(dev) {
+			return L.resolveDefault(L.ubus('iwinfo', 'info', { device: dev }), {});
+		});
+		Promise.all(promises).then(function(results) {
+			body.innerHTML = '';
+			results.forEach(function(info, i) {
+				if (!info || !info.ssid) return;
+				var clients = 0;
+				// Get assoclist for client count
+				L.resolveDefault(L.ubus('iwinfo', 'assoclist', { device: devs.devices[i] }), {}).then(function(al) {
+					clients = (al && al.results) ? al.results.length : 0;
+					var freq = info.frequency ? (info.frequency > 4000 ? '5G' : '2.4G') : '';
+					body.innerHTML +=
+						'<div class="dw-row"><span class="dw-label"><i class="fas fa-wifi" style="margin-right:4px;font-size:10px"></i>' + info.ssid + '</span><span class="dw-value">' + freq + '</span></div>' +
+						'<div class="dw-row dw-sub"><span class="dw-label">' + clients + ' clients</span><span class="dw-value">Ch ' + (info.channel || '?') + '</span></div>';
+				});
+			});
+		});
+	}).catch(function() {
+		var body = document.getElementById('dwWifiBody');
+		if (body) body.innerHTML = '<div class="dw-row"><span class="dw-label" style="opacity:.5">N/A</span></div>';
+	});
+}
+
+/* ===== ubus API: DHCP Leases ===== */
+function pollDhcp() {
+	if (typeof L === 'undefined' || !L.resolveDefault) return;
+	L.resolveDefault(L.ubus('luci-rpc', 'getDHCPLeases'), {}).then(function(data) {
+		var body = document.getElementById('dwDhcpBody');
+		if (!body) return;
+		var leases = (data && data.dhcp_leases) ? data.dhcp_leases : [];
+		if (!leases.length) {
+			body.innerHTML = '<div class="dw-row"><span class="dw-label" style="opacity:.5">No leases</span></div>';
+			return;
+		}
+		body.innerHTML = '<div class="dw-row"><span class="dw-label">Total</span><span class="dw-value">' + leases.length + ' devices</span></div>';
+		// Show up to 5 recent leases
+		leases.slice(0, 5).forEach(function(l) {
+			var name = l.hostname || l.ipaddr || '?';
+			body.innerHTML += '<div class="dw-row dw-sub"><span class="dw-label">' + name + '</span><span class="dw-value">' + (l.ipaddr || '') + '</span></div>';
+		});
+		if (leases.length > 5) {
+			body.innerHTML += '<div class="dw-row dw-sub"><span class="dw-label" style="opacity:.5">... +' + (leases.length - 5) + ' more</span></div>';
+		}
+	}).catch(function() {
+		var body = document.getElementById('dwDhcpBody');
+		if (body) body.innerHTML = '<div class="dw-row"><span class="dw-label" style="opacity:.5">N/A</span></div>';
+	});
+}
+
+/* ===== ubus API: Storage (df) ===== */
+function pollStorage() {
+	if (typeof L === 'undefined' || !L.resolveDefault) return;
+	L.resolveDefault(L.ubus('file', 'exec', {
+		command: '/bin/df', params: ['-h']
+	}), {}).then(function(r) {
+		var body = document.getElementById('dwStorageBody');
+		if (!body || !r || !r.stdout) return;
+		body.innerHTML = '';
+		var lines = r.stdout.trim().split('\n');
+		for (var i = 1; i < lines.length; i++) {
+			var cols = lines[i].trim().split(/\s+/);
+			if (cols.length < 6) continue;
+			var mount = cols[5];
+			// Only show meaningful mounts
+			if (mount === '/' || mount.indexOf('/mnt') === 0 || mount.indexOf('/opt') === 0 || mount === '/overlay' || mount === '/tmp') {
+				var used = cols[2], total = cols[1], pct = cols[4];
+				body.innerHTML +=
+					'<div class="dw-row"><span class="dw-label">' + mount + '</span><span class="dw-value">' + used + '/' + total + '</span></div>' +
+					'<div class="dw-progress"><div class="dw-progress-bar" style="width:' + pct + '"></div></div>';
+			}
+		}
+		if (!body.innerHTML) body.innerHTML = '<div class="dw-row"><span class="dw-label">/</span><span class="dw-value">--</span></div>';
+	}).catch(function() {});
+}
+
+/* ===== ubus API: CPU Temperature ===== */
+function pollTemp() {
+	if (typeof L === 'undefined' || !L.resolveDefault) return;
+	L.resolveDefault(L.ubus('file', 'read', { path: '/sys/class/thermal/thermal_zone0/temp' }), {}).then(function(r) {
+		if (r && r.data) {
+			var temp = parseInt(r.data.trim());
+			if (temp > 1000) temp = (temp / 1000).toFixed(1);
+			setVal('cpuVal', temp + '°C');
+		}
+	}).catch(function() {});
+}
+
+/* ===== Start All Polling ===== */
+setTimeout(function() {
+	pollBoard();
+	pollTemp();
+}, 600);
+setTimeout(function() {
+	pollSysInfo();
+	pollNetwork();
+	pollConntrack();
+	pollWifi();
+	pollDhcp();
+	pollStorage();
+}, 900);
 setInterval(pollSysInfo, 3000);
 setInterval(pollNetwork, 8000);
 setInterval(pollConntrack, 10000);
+setInterval(pollWifi, 15000);
+setInterval(pollDhcp, 20000);
+setInterval(pollStorage, 30000);
+setInterval(pollTemp, 10000);
 
 /* ===== Build Dock & Desktop Icons ===== */
 document.addEventListener('DOMContentLoaded', function() {

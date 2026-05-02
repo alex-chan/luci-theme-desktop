@@ -123,6 +123,24 @@
 					<div class="dw-row"><span class="dw-label">UDP</span><span class="dw-value" id="dwConnUDP">--</span></div>
 				</div>
 			</div>
+			<div class="dw-card" style="margin-top:12px">
+				<div class="dw-card-header"><i class="fas fa-wifi"></i> WiFi</div>
+				<div class="dw-card-body" id="dwWifiBody">
+					<div class="dw-row"><span class="dw-label">Loading...</span></div>
+				</div>
+			</div>
+			<div class="dw-card" style="margin-top:12px">
+				<div class="dw-card-header"><i class="fas fa-address-book"></i> DHCP Leases</div>
+				<div class="dw-card-body" id="dwDhcpBody">
+					<div class="dw-row"><span class="dw-label">Loading...</span></div>
+				</div>
+			</div>
+			<div class="dw-card" style="margin-top:12px">
+				<div class="dw-card-header"><i class="fas fa-hdd"></i> Storage</div>
+				<div class="dw-card-body" id="dwStorageBody">
+					<div class="dw-row"><span class="dw-label">Loading...</span></div>
+				</div>
+			</div>
 		</div>
 	</div>
 	{% endif %}
