@@ -3,6 +3,12 @@
 	Copyright 2024-2026 - Apache License 2.0
 -#}
 
+{%
+	// Must match header.ut (footer is compiled/rendered separately)
+	const pathStr = join('/', ctx.request_path);
+	const isDesktop = (pathStr == '/admin' || pathStr == '/admin/' || pathStr == '/admin/status' || pathStr == '/admin/status/overview');
+-%}
+	{% if (!isDesktop): %}
 					</div><!-- /.container -->
 				</div><!-- /.app-win-content -->
 			</div><!-- /.app-win-body -->

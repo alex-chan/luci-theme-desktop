@@ -262,3 +262,4 @@
 								<p>{{ _('You must enable JavaScript in your browser or LuCI will not work properly.') }}</p></div>
 							</div>
 						</noscript>
+	{% endif %}
