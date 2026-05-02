@@ -353,12 +353,6 @@ function bindDesktopAppOpen(el, href, title) {
 		openDesktopWindow(h, t);
 	}
 	el.addEventListener('click', launch, true);
-	el.addEventListener('keydown', function(e) {
-		if (e.key === 'Enter' || e.key === ' ') {
-			e.preventDefault();
-			launch(e);
-		}
-	});
 }
 
 /* ===== Clock ===== */
