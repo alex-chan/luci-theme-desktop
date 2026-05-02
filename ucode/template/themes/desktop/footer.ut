@@ -980,6 +980,52 @@ if (winMin && appWin) {
 }); /* L.require('rpc') */
 })();
 </script>
+<script>
+(function() {
+	'use strict';
+	var KEY = 'luci-theme-desktop-appearance';
+	function setMetaColor(hex) {
+		var m = document.querySelector('meta[name="theme-color"]');
+		if (m) m.setAttribute('content', hex);
+	}
+	function applyTheme(mode) {
+		var light = mode === 'light';
+		document.documentElement.classList.toggle('theme-light', light);
+		setMetaColor(light ? '#e8ecf8' : '#2d3a78');
+		var btn = document.getElementById('sbThemeToggle');
+		if (btn) {
+			var i = btn.querySelector('i');
+			if (i) i.className = light ? 'fas fa-moon' : 'fas fa-sun';
+			btn.setAttribute('aria-pressed', light ? 'true' : 'false');
+		}
+	}
+	function initTheme() {
+		applyTheme(localStorage.getItem(KEY) || 'dark');
+		var tbtn = document.getElementById('sbThemeToggle');
+		if (tbtn) {
+			tbtn.addEventListener('click', function() {
+				var next = document.documentElement.classList.contains('theme-light') ? 'dark' : 'light';
+				localStorage.setItem(KEY, next);
+				applyTheme(next);
+			});
+		}
+		var lo = document.getElementById('sbLogout');
+		if (lo && lo.getAttribute('href')) {
+			lo.addEventListener('click', function(e) {
+				var href = lo.getAttribute('href');
+				if (!href || href === '#') return;
+				e.preventDefault();
+				e.stopImmediatePropagation();
+				window.location.href = href;
+			}, true);
+		}
+	}
+	if (document.readyState === 'loading')
+		document.addEventListener('DOMContentLoaded', initTheme);
+	else
+		initTheme();
+})();
+</script>
 <script type="text/javascript">L.require('menu-desktop')</script>
 </body>
 </html>
