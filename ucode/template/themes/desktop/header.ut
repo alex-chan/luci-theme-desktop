@@ -29,7 +29,7 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 	<title>{{ hostname }}{{ node?.title ? ` - ${striptags(node.title)}` : '' }}</title>
 	<meta name="robots" content="noindex, nofollow">
-	<meta name="theme-color" content="#1a2244">
+	<meta name="theme-color" content="#2d3a78">
 	<meta name="apple-mobile-web-app-capable" content="yes">
 	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 	<link rel="icon" type="image/x-icon" href="{{ media }}/favicon.ico">
@@ -83,6 +83,8 @@
 			<h1 class="welcome-title">{{ hostname }}</h1>
 			<p class="welcome-sub">{{ model }}</p>
 		</div>
+		<!-- Off-screen menu source: menu-desktop requires #mainmenu; without it the dock/grid only got 4 static fallbacks -->
+		<div id="mainmenu" class="desktop-menu-host"></div>
 		<div class="desktop-grid" id="desktopGrid">
 			<!-- Icons populated by JS from LuCI menu -->
 		</div>

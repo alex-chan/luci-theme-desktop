@@ -39,7 +39,14 @@ return baseclass.extend({
 		menuUl.className = 'l1';
 		mainMenu.innerHTML = '';
 		mainMenu.appendChild(menuUl);
-		mainMenu.style.display = '';
+		/* Desktop page embeds #mainmenu only as a data source for dock/icons; keep it hidden in the layout */
+		if (document.body && document.body.classList.contains('is-desktop')) {
+			mainMenu.style.display = 'none';
+			mainMenu.setAttribute('aria-hidden', 'true');
+		} else {
+			mainMenu.style.display = '';
+			mainMenu.removeAttribute('aria-hidden');
+		}
 
 		this.setActiveItems(mainMenu);
 		document.dispatchEvent(new Event('desktop-menu-updated'));

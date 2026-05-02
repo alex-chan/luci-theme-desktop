@@ -87,8 +87,46 @@ var APP_ICONS = {
 };
 var DEFAULT_ICON = { icon: 'fas fa-cube', gradient: 'linear-gradient(135deg, #636e72 0%, #b2bec3 100%)' };
 
-function getAppStyle(name) {
-	return APP_ICONS[name] || DEFAULT_ICON;
+/* Map /admin/<segment>/… to APP_ICONS keys so translated menu titles still get the right icon */
+var ADMIN_SEG_TO_ICON_KEY = {
+	'status': 'Status', 'system': 'System', 'network': 'Network', 'services': 'Services',
+	'docker': 'Docker', 'nas': 'NAS', 'vpn': 'VPN', 'firewall': 'Firewall',
+	'software': 'Software', 'startup': 'Startup', 'administration': 'Administration',
+	'package-manager': 'Software', 'opkg': 'Software'
+};
+
+function adminPathSegment(href) {
+	if (!href || href === '#') return '';
+	try {
+		var path = href.replace(/^[a-z]+:\/\/[^/]+/i, '');
+		var m = path.match(/\/(?:cgi-bin\/luci\/)?admin\/([^/?#]+)/i);
+		return m ? m[1].toLowerCase() : '';
+	} catch (e) { return ''; }
+}
+
+function getAppStyleForItem(displayName, href) {
+	if (displayName && APP_ICONS[displayName])
+		return APP_ICONS[displayName];
+	var seg = adminPathSegment(href);
+	var key = seg && ADMIN_SEG_TO_ICON_KEY[seg];
+	if (key && APP_ICONS[key])
+		return APP_ICONS[key];
+	return DEFAULT_ICON;
+}
+
+function resolveTopLevelMenuItem(li, a) {
+	var mt = a.querySelector('.menu-text');
+	var name = (mt && mt.textContent) ? mt.textContent.trim() : a.textContent.trim();
+	var href = (a.getAttribute('href') || '').trim();
+	if (href && href !== '#' && href.charAt(0) !== '#')
+		return { name: name, href: href, active: li.classList.contains('active') };
+	var subs = li.querySelectorAll('.l2 a.menu-link[href]');
+	for (var i = 0; i < subs.length; i++) {
+		var h = (subs[i].getAttribute('href') || '').trim();
+		if (h && h !== '#' && h.charAt(0) !== '#')
+			return { name: name, href: h, active: li.classList.contains('active') };
+	}
+	return { name: name, href: href || '#', active: li.classList.contains('active') };
 }
 
 /* ===== Clock ===== */
@@ -602,14 +640,22 @@ function buildUI() {
 		topItems.forEach(function(li) {
 			var a = li.querySelector(':scope > a');
 			if (!a) return;
-			var mt = a.querySelector('.menu-text');
-			var name = (mt && mt.textContent) ? mt.textContent.trim() : a.textContent.trim();
-			var href = a.getAttribute('href') || '#';
-			if (name === 'Logout') return;
-			var isActive = li.classList.contains('active');
-			items.push({ name: name, href: href, active: isActive });
+			var it = resolveTopLevelMenuItem(li, a);
+			if (it.name === 'Logout') return;
+			items.push(it);
 		});
 	}
+	// Drop duplicate hrefs (e.g. mis-built menu) so dock/grid stay usable
+	(function() {
+		var seen = {};
+		items = items.filter(function(it) {
+			var h = it.href || '';
+			if (!h || h === '#' || h.charAt(0) === '#') return true;
+			if (seen[h]) return false;
+			seen[h] = true;
+			return true;
+		});
+	})();
 
 	function fallbackDockItems() {
 		if (typeof L !== 'undefined' && typeof L.url === 'function') {
@@ -644,7 +690,7 @@ function buildUI() {
 	// Build dock
 	dockContainer.innerHTML = '';
 	items.forEach(function(item) {
-		var style = getAppStyle(item.name);
+		var style = getAppStyleForItem(item.name, item.href);
 		var el = document.createElement('a');
 		el.className = 'dock-icon' + (item.active ? ' active' : '');
 		el.href = item.href;
@@ -657,7 +703,7 @@ function buildUI() {
 	if (isDesktop && desktopGrid) {
 		desktopGrid.innerHTML = '';
 		items.forEach(function(item) {
-			var style = getAppStyle(item.name);
+			var style = getAppStyleForItem(item.name, item.href);
 			var el = document.createElement('a');
 			el.className = 'desktop-app';
 			el.href = item.href;
