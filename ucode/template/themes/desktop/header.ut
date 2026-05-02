@@ -141,6 +141,73 @@
 					<div class="dw-row"><span class="dw-label">Loading...</span></div>
 				</div>
 			</div>
+			<div class="dw-card" style="margin-top:12px">
+				<div class="dw-card-header"><i class="fas fa-percentage"></i> CPU Usage</div>
+				<div class="dw-card-body">
+					<div class="dw-row"><span class="dw-label">Usage</span><span class="dw-value" id="dwCpuPct">--%</span></div>
+					<div class="dw-progress"><div class="dw-progress-bar dw-progress-cpu" id="dwCpuBar" style="width:0%"></div></div>
+					<div class="dw-row"><span class="dw-label">Temp</span><span class="dw-value" id="dwCpuTemp">--</span></div>
+					<div class="dw-row"><span class="dw-label">Cores</span><span class="dw-value" id="dwCpuCores">--</span></div>
+					<div class="dw-row"><span class="dw-label">Freq</span><span class="dw-value" id="dwCpuFreq">--</span></div>
+				</div>
+			</div>
+			<div class="dw-card" style="margin-top:12px">
+				<div class="dw-card-header"><i class="fas fa-exchange-alt"></i> Bandwidth</div>
+				<div class="dw-card-body" id="dwBandwidthBody">
+					<div class="dw-row"><span class="dw-label">Loading...</span></div>
+				</div>
+			</div>
+			<div class="dw-card" style="margin-top:12px">
+				<div class="dw-card-header"><i class="fas fa-sitemap"></i> ARP / Neighbors</div>
+				<div class="dw-card-body">
+					<div class="dw-row"><span class="dw-label">Total</span><span class="dw-value" id="dwArpTotal">--</span></div>
+					<div class="dw-row dw-sub" id="dwArpList"></div>
+				</div>
+			</div>
+			<div class="dw-card" style="margin-top:12px">
+				<div class="dw-card-header"><i class="fas fa-cogs"></i> Processes</div>
+				<div class="dw-card-body">
+					<div class="dw-row"><span class="dw-label">Total</span><span class="dw-value" id="dwProcTotal">--</span></div>
+					<div class="dw-row"><span class="dw-label">Running</span><span class="dw-value" id="dwProcRunning">--</span></div>
+					<div class="dw-row"><span class="dw-label">Sleeping</span><span class="dw-value" id="dwProcSleep">--</span></div>
+				</div>
+			</div>
+			<div class="dw-card" style="margin-top:12px">
+				<div class="dw-card-header"><i class="fas fa-shield-alt"></i> Firewall</div>
+				<div class="dw-card-body">
+					<div class="dw-row"><span class="dw-label">Zones</span><span class="dw-value" id="dwFwZones">--</span></div>
+					<div class="dw-row"><span class="dw-label">Forwarding</span><span class="dw-value" id="dwFwFwd">--</span></div>
+					<div class="dw-row"><span class="dw-label">Rules</span><span class="dw-value" id="dwFwRules">--</span></div>
+					<div class="dw-row"><span class="dw-label">Redirects</span><span class="dw-value" id="dwFwRedirs">--</span></div>
+				</div>
+			</div>
+			<div class="dw-card" style="margin-top:12px">
+				<div class="dw-card-header"><i class="fas fa-route"></i> Routes</div>
+				<div class="dw-card-body">
+					<div class="dw-row"><span class="dw-label">IPv4</span><span class="dw-value" id="dwRoutes4">--</span></div>
+					<div class="dw-row"><span class="dw-label">IPv6</span><span class="dw-value" id="dwRoutes6">--</span></div>
+					<div class="dw-row"><span class="dw-label">Default GW</span><span class="dw-value" id="dwGateway">--</span></div>
+				</div>
+			</div>
+			<div class="dw-card" style="margin-top:12px">
+				<div class="dw-card-header"><i class="fas fa-clock"></i> NTP</div>
+				<div class="dw-card-body">
+					<div class="dw-row"><span class="dw-label">Server</span><span class="dw-value" id="dwNtpSrv">--</span></div>
+					<div class="dw-row"><span class="dw-label">Synced</span><span class="dw-value" id="dwNtpSync">--</span></div>
+				</div>
+			</div>
+			<div class="dw-card" style="margin-top:12px">
+				<div class="dw-card-header"><i class="fas fa-usb"></i> USB Devices</div>
+				<div class="dw-card-body" id="dwUsbBody">
+					<div class="dw-row"><span class="dw-label">Loading...</span></div>
+				</div>
+			</div>
+			<div class="dw-card" style="margin-top:12px">
+				<div class="dw-card-header"><i class="fas fa-scroll"></i> System Log</div>
+				<div class="dw-card-body dw-log-body" id="dwLogBody">
+					<div class="dw-row"><span class="dw-label">Loading...</span></div>
+				</div>
+			</div>
 		</div>
 	</div>
 	{% endif %}

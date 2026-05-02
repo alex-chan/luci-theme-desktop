@@ -263,38 +263,283 @@ function pollStorage() {
 	}).catch(function() {});
 }
 
-/* ===== ubus API: CPU Temperature ===== */
+/* ===== CPU Usage % (from /proc/stat delta) ===== */
+var _prevCpu = null;
+function pollCpuUsage() {
+	if (typeof L === 'undefined' || !L.resolveDefault) return;
+	L.resolveDefault(L.ubus('file', 'read', { path: '/proc/stat' }), {}).then(function(r) {
+		if (!r || !r.data) return;
+		var line = r.data.split('\n')[0]; // "cpu  user nice system idle ..."
+		var p = line.trim().split(/\s+/);
+		if (p.length < 5) return;
+		var idle = parseInt(p[4]) || 0;
+		var total = 0;
+		for (var i = 1; i < p.length; i++) total += parseInt(p[i]) || 0;
+		if (_prevCpu) {
+			var dTotal = total - _prevCpu.total;
+			var dIdle = idle - _prevCpu.idle;
+			var pct = dTotal > 0 ? Math.round(((dTotal - dIdle) / dTotal) * 100) : 0;
+			setVal('dwCpuPct', pct + '%');
+			setBar('dwCpuBar', pct);
+			setVal('cpuVal', pct + '%');
+		}
+		_prevCpu = { total: total, idle: idle };
+	}).catch(function() {});
+}
+
+/* ===== CPU Details (cores, freq) ===== */
+function pollCpuDetail() {
+	if (typeof L === 'undefined' || !L.resolveDefault) return;
+	L.resolveDefault(L.ubus('file', 'read', { path: '/proc/cpuinfo' }), {}).then(function(r) {
+		if (!r || !r.data) return;
+		var lines = r.data.split('\n');
+		var cores = 0, freq = '';
+		lines.forEach(function(l) {
+			if (l.indexOf('processor') === 0) cores++;
+			if (l.indexOf('cpu MHz') === 0 && !freq) freq = l.split(':')[1].trim() + ' MHz';
+			if (l.indexOf('model name') === 0 && !freq) freq = l.split(':')[1].trim();
+		});
+		setVal('dwCpuCores', cores || '--');
+		if (freq) setVal('dwCpuFreq', freq);
+	}).catch(function() {});
+	// Also read scaling freq
+	L.resolveDefault(L.ubus('file', 'read', { path: '/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq' }), {}).then(function(r) {
+		if (r && r.data) {
+			var mhz = (parseInt(r.data.trim()) / 1000).toFixed(0);
+			setVal('dwCpuFreq', mhz + ' MHz');
+		}
+	}).catch(function() {});
+}
+
+/* ===== CPU Temperature ===== */
 function pollTemp() {
 	if (typeof L === 'undefined' || !L.resolveDefault) return;
 	L.resolveDefault(L.ubus('file', 'read', { path: '/sys/class/thermal/thermal_zone0/temp' }), {}).then(function(r) {
 		if (r && r.data) {
 			var temp = parseInt(r.data.trim());
 			if (temp > 1000) temp = (temp / 1000).toFixed(1);
-			setVal('cpuVal', temp + '°C');
+			setVal('dwCpuTemp', temp + '°C');
 		}
+	}).catch(function() {});
+}
+
+/* ===== Real-time Bandwidth (bytes/sec) ===== */
+var _prevBw = {};
+function pollBandwidth() {
+	if (typeof L === 'undefined' || !L.resolveDefault) return;
+	L.resolveDefault(L.ubus('network.interface', 'dump'), {}).then(function(data) {
+		var body = document.getElementById('dwBandwidthBody');
+		if (!body || !data || !data.interface) return;
+		var now = Date.now();
+		body.innerHTML = '';
+		data.interface.forEach(function(iface) {
+			if (iface.interface === 'loopback' || !iface.up) return;
+			var rx = (iface.statistics && iface.statistics.rx_bytes) || 0;
+			var tx = (iface.statistics && iface.statistics.tx_bytes) || 0;
+			var key = iface.interface;
+			if (_prevBw[key]) {
+				var dt = (now - _prevBw[key].time) / 1000;
+				if (dt > 0) {
+					var rxS = (rx - _prevBw[key].rx) / dt;
+					var txS = (tx - _prevBw[key].tx) / dt;
+					body.innerHTML +=
+						'<div class="dw-row"><span class="dw-label">' + key.toUpperCase() + '</span></div>' +
+						'<div class="dw-row dw-sub"><span class="dw-label">↓ ' + fmtBytes(Math.max(0,rxS)) + '/s</span><span class="dw-value">↑ ' + fmtBytes(Math.max(0,txS)) + '/s</span></div>';
+				}
+			}
+			_prevBw[key] = { rx: rx, tx: tx, time: now };
+		});
+		if (!body.innerHTML) body.innerHTML = '<div class="dw-row"><span class="dw-label" style="opacity:.5">N/A</span></div>';
+	}).catch(function() {});
+}
+
+/* ===== ARP / Neighbors ===== */
+function pollArp() {
+	if (typeof L === 'undefined' || !L.resolveDefault) return;
+	L.resolveDefault(L.ubus('luci-rpc', 'getHostHints'), {}).then(function(hosts) {
+		if (!hosts) return;
+		var keys = Object.keys(hosts);
+		setVal('dwArpTotal', keys.length);
+		var list = document.getElementById('dwArpList');
+		if (list) {
+			var html = '';
+			keys.slice(0, 6).forEach(function(mac) {
+				var h = hosts[mac];
+				var name = (h.name || h.ipv4 || mac).substring(0, 18);
+				html += '<div class="dw-row dw-sub"><span class="dw-label">' + name + '</span><span class="dw-value">' + (h.ipv4 || '') + '</span></div>';
+			});
+			if (keys.length > 6) html += '<div class="dw-row dw-sub"><span class="dw-label" style="opacity:.5">+' + (keys.length - 6) + ' more</span></div>';
+			list.innerHTML = html;
+		}
+	}).catch(function() {});
+}
+
+/* ===== Processes ===== */
+function pollProc() {
+	if (typeof L === 'undefined' || !L.resolveDefault) return;
+	L.resolveDefault(L.ubus('luci', 'getProcessList'), {}).then(function(data) {
+		if (data && data.result) {
+			setVal('dwProcTotal', data.result.length);
+			var running = 0, sleeping = 0;
+			data.result.forEach(function(p) {
+				if (p.STAT && p.STAT.indexOf('R') === 0) running++;
+				else sleeping++;
+			});
+			setVal('dwProcRunning', running);
+			setVal('dwProcSleep', sleeping);
+		}
+	}).catch(function() {
+		// fallback via /proc
+		L.resolveDefault(L.ubus('file', 'exec', { command: '/bin/sh', params: ['-c', 'echo "$(ls /proc/*/status 2>/dev/null | wc -l)|$(grep -c "State.*running" /proc/*/status 2>/dev/null || echo 0)"'] }), {}).then(function(r) {
+			if (r && r.stdout) {
+				var pp = r.stdout.trim().split('|');
+				setVal('dwProcTotal', pp[0] || '--');
+				setVal('dwProcRunning', pp[1] || '--');
+			}
+		}).catch(function() {});
+	});
+}
+
+/* ===== Firewall (UCI) ===== */
+function pollFirewall() {
+	if (typeof L === 'undefined' || !L.resolveDefault) return;
+	L.resolveDefault(L.ubus('uci', 'get', { config: 'firewall' }), {}).then(function(data) {
+		if (!data || !data.values) return;
+		var zones = 0, fwd = 0, rules = 0, redirs = 0;
+		Object.keys(data.values).forEach(function(k) {
+			var s = data.values[k];
+			if (s['.type'] === 'zone') zones++;
+			if (s['.type'] === 'forwarding') fwd++;
+			if (s['.type'] === 'rule') rules++;
+			if (s['.type'] === 'redirect') redirs++;
+		});
+		setVal('dwFwZones', zones);
+		setVal('dwFwFwd', fwd);
+		setVal('dwFwRules', rules);
+		setVal('dwFwRedirs', redirs);
+	}).catch(function() {});
+}
+
+/* ===== Routes ===== */
+function pollRoutes() {
+	if (typeof L === 'undefined' || !L.resolveDefault) return;
+	L.resolveDefault(L.ubus('network', 'get_proto_handlers'), {}).then(function(){}).catch(function(){});
+	// IPv4 routes
+	L.resolveDefault(L.ubus('file', 'exec', { command: '/sbin/ip', params: ['-4', 'route', 'show'] }), {}).then(function(r) {
+		if (r && r.stdout) {
+			var lines = r.stdout.trim().split('\n').filter(function(l){ return l.length > 0; });
+			setVal('dwRoutes4', lines.length);
+			// Find default gateway
+			lines.forEach(function(l) {
+				if (l.indexOf('default via') === 0) {
+					var gw = l.split(/\s+/)[2] || '';
+					setVal('dwGateway', gw);
+				}
+			});
+		}
+	}).catch(function() {});
+	// IPv6 routes
+	L.resolveDefault(L.ubus('file', 'exec', { command: '/sbin/ip', params: ['-6', 'route', 'show'] }), {}).then(function(r) {
+		if (r && r.stdout) {
+			setVal('dwRoutes6', r.stdout.trim().split('\n').filter(function(l){ return l.length > 0; }).length);
+		}
+	}).catch(function() {});
+}
+
+/* ===== NTP Status ===== */
+function pollNtp() {
+	if (typeof L === 'undefined' || !L.resolveDefault) return;
+	L.resolveDefault(L.ubus('uci', 'get', { config: 'system', type: 'timeserver' }), {}).then(function(data) {
+		if (!data || !data.values) return;
+		var first = Object.keys(data.values)[0];
+		if (first && data.values[first]) {
+			var srv = data.values[first].server;
+			if (Array.isArray(srv)) setVal('dwNtpSrv', srv[0] || '--');
+			else if (srv) setVal('dwNtpSrv', srv);
+			setVal('dwNtpSync', data.values[first].enabled === '1' ? 'Enabled' : 'Disabled');
+		}
+	}).catch(function() {});
+}
+
+/* ===== USB Devices ===== */
+function pollUsb() {
+	if (typeof L === 'undefined' || !L.resolveDefault) return;
+	L.resolveDefault(L.ubus('file', 'exec', { command: '/bin/sh', params: ['-c', 'ls /sys/bus/usb/devices/*/product 2>/dev/null | head -8'] }), {}).then(function(r) {
+		var body = document.getElementById('dwUsbBody');
+		if (!body) return;
+		if (!r || !r.stdout || !r.stdout.trim()) {
+			body.innerHTML = '<div class="dw-row"><span class="dw-label" style="opacity:.5">None</span></div>';
+			return;
+		}
+		var paths = r.stdout.trim().split('\n');
+		var readPromises = paths.map(function(p) { return L.resolveDefault(L.ubus('file', 'read', { path: p }), {}); });
+		Promise.all(readPromises).then(function(results) {
+			body.innerHTML = '<div class="dw-row"><span class="dw-label">Devices</span><span class="dw-value">' + results.length + '</span></div>';
+			results.forEach(function(rd) {
+				if (rd && rd.data) body.innerHTML += '<div class="dw-row dw-sub"><span class="dw-label">' + rd.data.trim().substring(0, 24) + '</span></div>';
+			});
+		});
+	}).catch(function() {
+		var body = document.getElementById('dwUsbBody');
+		if (body) body.innerHTML = '<div class="dw-row"><span class="dw-label" style="opacity:.5">N/A</span></div>';
+	});
+}
+
+/* ===== System Log (last lines) ===== */
+function pollSyslog() {
+	if (typeof L === 'undefined' || !L.resolveDefault) return;
+	L.resolveDefault(L.ubus('file', 'exec', { command: '/sbin/logread', params: ['-l', '8'] }), {}).then(function(r) {
+		var body = document.getElementById('dwLogBody');
+		if (!body) return;
+		if (!r || !r.stdout) { body.innerHTML = '<div class="dw-row"><span class="dw-label" style="opacity:.5">Empty</span></div>'; return; }
+		body.innerHTML = '';
+		var lines = r.stdout.trim().split('\n');
+		lines.forEach(function(line) {
+			// Extract time + message, trim to fit
+			var short = line.length > 60 ? line.substring(line.length - 60) : line;
+			body.innerHTML += '<div class="dw-log-line">' + short.replace(/</g, '&lt;') + '</div>';
+		});
 	}).catch(function() {});
 }
 
 /* ===== Start All Polling ===== */
 setTimeout(function() {
 	pollBoard();
-	pollTemp();
+	pollCpuDetail();
+	pollNtp();
+	pollFirewall();
+	pollUsb();
 }, 600);
 setTimeout(function() {
 	pollSysInfo();
+	pollCpuUsage();
 	pollNetwork();
+	pollBandwidth();
 	pollConntrack();
 	pollWifi();
 	pollDhcp();
 	pollStorage();
+	pollTemp();
+	pollArp();
+	pollProc();
+	pollRoutes();
+	pollSyslog();
 }, 900);
 setInterval(pollSysInfo, 3000);
+setInterval(pollCpuUsage, 2000);
+setInterval(pollBandwidth, 3000);
 setInterval(pollNetwork, 8000);
 setInterval(pollConntrack, 10000);
+setInterval(pollTemp, 10000);
 setInterval(pollWifi, 15000);
 setInterval(pollDhcp, 20000);
+setInterval(pollArp, 15000);
+setInterval(pollProc, 8000);
 setInterval(pollStorage, 30000);
-setInterval(pollTemp, 10000);
+setInterval(pollRoutes, 30000);
+setInterval(pollFirewall, 60000);
+setInterval(pollUsb, 30000);
+setInterval(pollSyslog, 8000);
 
 /* ===== Build Dock & Desktop Icons ===== */
 document.addEventListener('DOMContentLoaded', function() {

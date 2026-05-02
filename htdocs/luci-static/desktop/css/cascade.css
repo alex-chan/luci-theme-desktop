@@ -59,6 +59,9 @@ a{color:var(--accent2);text-decoration:none;transition:color var(--tr)}a:hover{c
 .dw-progress{height:4px;background:rgba(255,255,255,.08);border-radius:2px;margin:2px 0 6px;overflow:hidden}
 .dw-progress-bar{height:100%;background:var(--grad);border-radius:2px;transition:width .6s ease}
 .dw-progress-swap .dw-progress-bar{background:linear-gradient(135deg,#ffd740,#ff9100)}
+.dw-progress-cpu .dw-progress-bar{background:linear-gradient(135deg,var(--ok),var(--warn))}
+.dw-log-body{max-height:150px;overflow-y:auto}
+.dw-log-line{font-size:10px;color:var(--text3);line-height:1.5;padding:1px 0;font-family:'JetBrains Mono','Fira Code',monospace;word-break:break-all}
 
 /* ===== Bottom Dock ===== */
 .dock{position:fixed;bottom:0;left:0;right:0;height:var(--dock-h);z-index:200;display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px;pointer-events:none}
