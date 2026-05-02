@@ -92,6 +92,16 @@ var APP_ICONS = {
 };
 var DEFAULT_ICON = { icon: 'fas fa-cube', gradient: 'linear-gradient(135deg, #636e72 0%, #b2bec3 100%)' };
 
+/* LuCI po / common UI strings → APP_ICONS key (when href segment is ambiguous) */
+var MENU_TITLE_ICON_KEY = {
+	'状态': 'Status', '系统': 'System', '网络': 'Network', '服务': 'Services',
+	'服务状态': 'Status', '概况': 'Overview', '总览': 'Overview',
+	'防火墙': 'Firewall', '软件包': 'Software', '软件': 'Software', 'Docker': 'Docker',
+	'退出': 'Logout', '管理权': 'Administration', '启动项': 'Startup', '计划任务': 'Scheduled Tasks',
+	'挂载点': 'Mount Points', '重启': 'Reboot', '诊断': 'Diagnostics', '接口': 'Interfaces',
+	'无线': 'Wireless', 'DHCP/DNS': 'DHCP and DNS', '路由': 'Routing'
+};
+
 /* Map /admin/<segment>/… to APP_ICONS keys so translated menu titles still get the right icon */
 var ADMIN_SEG_TO_ICON_KEY = {
 	'status': 'Status', 'system': 'System', 'network': 'Network', 'services': 'Services',
@@ -110,8 +120,13 @@ function adminPathSegment(href) {
 }
 
 function getAppStyleForItem(displayName, href) {
-	if (displayName && APP_ICONS[displayName])
-		return APP_ICONS[displayName];
+	var t = (displayName || '').trim();
+	if (t && APP_ICONS[t])
+		return APP_ICONS[t];
+	if (t && MENU_TITLE_ICON_KEY[t]) {
+		var mk = MENU_TITLE_ICON_KEY[t];
+		if (APP_ICONS[mk]) return APP_ICONS[mk];
+	}
 	var seg = adminPathSegment(href);
 	var key = seg && ADMIN_SEG_TO_ICON_KEY[seg];
 	if (key && APP_ICONS[key])
@@ -119,19 +134,41 @@ function getAppStyleForItem(displayName, href) {
 	return DEFAULT_ICON;
 }
 
+function menuItemHrefValid(h) {
+	if (!h) return false;
+	h = String(h).trim();
+	return h !== '#' && h.charAt(0) !== '#';
+}
+
 function resolveTopLevelMenuItem(li, a) {
 	var mt = a.querySelector('.menu-text');
 	var name = (mt && mt.textContent) ? mt.textContent.trim() : a.textContent.trim();
 	var href = (a.getAttribute('href') || '').trim();
-	if (href && href !== '#' && href.charAt(0) !== '#')
+	if (menuItemHrefValid(href))
 		return { name: name, href: href, active: li.classList.contains('active') };
-	var subs = li.querySelectorAll('.l2 a.menu-link[href]');
-	for (var i = 0; i < subs.length; i++) {
-		var h = (subs[i].getAttribute('href') || '').trim();
-		if (h && h !== '#' && h.charAt(0) !== '#')
+	/* Any descendant menu link (l2/l3) — parent <a> is often # when node has children */
+	var links = li.querySelectorAll('a.menu-link[href]');
+	for (var i = 0; i < links.length; i++) {
+		var h = (links[i].getAttribute('href') || '').trim();
+		if (menuItemHrefValid(h))
 			return { name: name, href: h, active: li.classList.contains('active') };
 	}
 	return { name: name, href: href || '#', active: li.classList.contains('active') };
+}
+
+/* Ensure iframe gets an absolute URL (LuCI often uses root-relative /cgi-bin/luci/...). */
+function toAbsoluteLuciUrl(href) {
+	if (!menuItemHrefValid(href)) return '';
+	var raw = String(href).trim().split('#')[0].split('?')[0];
+	try {
+		if (raw.indexOf('://') >= 0) return raw;
+		if (raw.charAt(0) === '/') return window.location.origin + raw;
+		var p = raw.replace(/^\//, '');
+		if (p.indexOf('cgi-bin/') === 0) return window.location.origin + '/' + p;
+		return window.location.origin + '/cgi-bin/luci/' + p;
+	} catch (e) {
+		return '';
+	}
 }
 
 function showcaseUrl(path) {
@@ -179,8 +216,8 @@ function syncDockOpenIndicators() {
 		var u = deskNormalizePath(fr.getAttribute('src') || '');
 		if (u) prefixes.push(u);
 	});
-	document.querySelectorAll('#dockContainer a.dock-icon').forEach(function(a) {
-		var dh = deskNormalizePath(a.getAttribute('href') || '');
+	document.querySelectorAll('#dockContainer .dock-icon').forEach(function(a) {
+		var dh = deskNormalizePath(a.dataset.appHref || a.getAttribute('data-app-href') || a.getAttribute('href') || '');
 		var on = false;
 		if (dh) {
 			for (var i = 0; i < prefixes.length; i++) {
@@ -225,17 +262,26 @@ function bringDeskWinToFront(winEl) {
 
 function openDesktopWindow(href, title) {
 	var stack = document.getElementById('desktopWindowStack');
-	if (!stack || !href || href === '#') return;
-	var abs;
-	try {
-		abs = href.indexOf('://') >= 0 ? href : new URL(href, window.location.origin).href;
-	} catch (e) { return; }
+	if (!stack || !menuItemHrefValid(href)) return;
+	var abs = toAbsoluteLuciUrl(href);
+	if (!abs) return;
+	var norm = deskNormalizePath(abs);
+	var dup = 0;
+	stack.querySelectorAll('.desk-win-frame').forEach(function(fr) {
+		var fp = deskNormalizePath(fr.getAttribute('src') || '');
+		if (!fp || !norm) return;
+		if (fp === norm || fp.indexOf(norm + '/') === 0 || norm.indexOf(fp + '/') === 0)
+			dup++;
+	});
+	var winTitle = (title || 'LuCI').trim();
+	if (dup > 0) winTitle += ' (' + (dup + 1) + ')';
+
 	var n = stack.querySelectorAll('.desk-win').length;
 	var win = document.createElement('div');
 	win.className = 'desk-win';
 	win.setAttribute('tabindex', '-1');
-	var ox = 40 + (n % 6) * 28;
-	var oy = 36 + (n % 6) * 24;
+	var ox = 36 + (n * 28) % 220;
+	var oy = 32 + (n * 24) % 200;
 	win.style.left = ox + 'px';
 	win.style.top = oy + 'px';
 	bringDeskWinToFront(win);
@@ -249,11 +295,11 @@ function openDesktopWindow(href, title) {
 		'<span class="win-btn win-maximize desk-win-max" role="button" tabindex="0" title="Maximize"></span>' +
 		'</div>' +
 		'<div class="win-title desk-win-title"></div>';
-	tb.querySelector('.desk-win-title').textContent = title || 'LuCI';
+	tb.querySelector('.desk-win-title').textContent = winTitle;
 
 	var frame = document.createElement('iframe');
 	frame.className = 'desk-win-frame';
-	frame.setAttribute('title', title || 'LuCI');
+	frame.setAttribute('title', winTitle);
 	frame.setAttribute('src', abs);
 
 	win.appendChild(tb);
@@ -287,25 +333,32 @@ function openDesktopWindow(href, title) {
 	syncDockOpenIndicators();
 }
 
-function ensureDesktopAppLaunchCapture() {
-	if (window._desktopAppLaunchBound) return;
-	window._desktopAppLaunchBound = true;
-	document.addEventListener('click', function(e) {
+/* Desktop: <button> avoids LuCI global <a> handling; still support <a> if present. */
+function bindDesktopAppOpen(el, href, title) {
+	if (!el || el._desktopAppOpenBound) return;
+	el._desktopAppOpenBound = true;
+	function launch(e) {
 		if (!document.body.classList.contains('is-desktop')) return;
-		if (e.ctrlKey || e.metaKey || e.button !== 0) return;
-		var a = e.target.closest('a.dock-icon, a.desktop-app');
-		if (!a) return;
-		var href = a.getAttribute('href');
-		if (!href || href === '#' || href.charAt(0) === '#') return;
+		if (e.ctrlKey || e.metaKey || e.shiftKey) return;
+		var h = el.dataset.appHref || el.getAttribute('data-app-href') || el.getAttribute('href');
+		if (!menuItemHrefValid(h)) return;
 		e.preventDefault();
 		e.stopPropagation();
-		var title = a.getAttribute('title') || '';
-		if (!title) {
-			var nm = a.querySelector('.desktop-app-name');
-			if (nm) title = nm.textContent.trim();
+		e.stopImmediatePropagation();
+		var t = title || el.getAttribute('title') || el.getAttribute('aria-label') || '';
+		if (!t) {
+			var nm = el.querySelector('.desktop-app-name');
+			if (nm) t = nm.textContent.trim();
 		}
-		openDesktopWindow(href, title);
-	}, true);
+		openDesktopWindow(h, t);
+	}
+	el.addEventListener('click', launch, true);
+	el.addEventListener('keydown', function(e) {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			launch(e);
+		}
+	});
 }
 
 /* ===== Clock ===== */
@@ -824,12 +877,12 @@ function buildUI() {
 			items.push(it);
 		});
 	}
-	// Drop duplicate hrefs (e.g. mis-built menu) so dock/grid stay usable
+	// Drop invalid / duplicate hrefs (no # placeholders in dock)
 	(function() {
 		var seen = {};
 		items = items.filter(function(it) {
-			var h = it.href || '';
-			if (!h || h === '#' || h.charAt(0) === '#') return true;
+			if (!menuItemHrefValid(it.href)) return false;
+			var h = it.href;
 			if (seen[h]) return false;
 			seen[h] = true;
 			return true;
@@ -853,8 +906,8 @@ function buildUI() {
 		];
 	}
 
-	var allHash = items.length && items.every(function(i) { return !i.href || i.href === '#' || i.href.charAt(0) === '#'; });
-	if (items.length === 0 || allHash) {
+	var allInvalid = items.length && items.every(function(i) { return !menuItemHrefValid(i.href); });
+	if (items.length === 0 || allInvalid) {
 		if (_dockBuildAttempts < 50) {
 			_dockBuildAttempts++;
 			setTimeout(buildUI, 120);
@@ -869,35 +922,47 @@ function buildUI() {
 	if (!isDesktop)
 		setDockItemsActiveByLocation(items);
 
-	// Build dock (icons = LuCI top-level menu only, no synthetic showcase entries)
+	// Build dock (icons = LuCI top-level menu only)
 	dockContainer.innerHTML = '';
 	items.forEach(function(item) {
 		var style = getAppStyleForItem(item.name, item.href);
-		var el = document.createElement('a');
-		el.className = 'dock-icon' + ((!isDesktop && item.active) ? ' active' : '');
-		el.href = item.href;
-		el.title = item.name;
+		var el;
+		if (isDesktop) {
+			el = document.createElement('button');
+			el.type = 'button';
+			el.className = 'dock-icon';
+			el.dataset.appHref = item.href;
+			el.title = item.name;
+			el.setAttribute('aria-label', item.name);
+		} else {
+			el = document.createElement('a');
+			el.className = 'dock-icon' + (item.active ? ' active' : '');
+			el.href = item.href;
+			el.title = item.name;
+		}
 		el.innerHTML = '<div class="dock-icon-img" style="background:' + style.gradient + '"><i class="' + style.icon + '"></i></div>';
 		dockContainer.appendChild(el);
+		if (isDesktop) bindDesktopAppOpen(el, item.href, item.name);
 	});
-	if (isDesktop) {
-		ensureDesktopAppLaunchCapture();
-		syncDockOpenIndicators();
-	}
+	if (isDesktop) syncDockOpenIndicators();
 
 	// Build desktop grid icons
 	if (isDesktop && desktopGrid) {
 		desktopGrid.innerHTML = '';
 		items.forEach(function(item) {
 			var style = getAppStyleForItem(item.name, item.href);
-			var el = document.createElement('a');
+			var el = document.createElement('button');
+			el.type = 'button';
 			el.className = 'desktop-app';
-			el.href = item.href;
+			el.dataset.appHref = item.href;
+			el.title = item.name;
+			el.setAttribute('aria-label', item.name);
 			el.innerHTML =
 				'<div class="desktop-app-icon" style="background:' + style.gradient + '">' +
 				'<i class="' + style.icon + '"></i></div>' +
 				'<span class="desktop-app-name">' + item.name + '</span>';
 			desktopGrid.appendChild(el);
+			bindDesktopAppOpen(el, item.href, item.name);
 		});
 	}
 
