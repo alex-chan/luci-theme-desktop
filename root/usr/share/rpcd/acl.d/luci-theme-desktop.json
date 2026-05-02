@@ -1,0 +1,14 @@
+{
+	"luci-mod-status-index": {
+		"description": "LuCI Desktop theme: extend status overview RPC (newer luci-base methods)",
+		"read": {
+			"ubus": {
+				"luci": [
+					"getCPUInfo",
+					"getTempInfo",
+					"getConntrackCount"
+				]
+			}
+		}
+	}
+}

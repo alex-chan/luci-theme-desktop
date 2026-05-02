@@ -11,10 +11,24 @@ return baseclass.extend({
 	},
 
 	render: function(tree) {
-		var node = tree,
-			url = '';
-
-		this.renderMainMenu(node, url);
+		/* Same idea as menu-bootstrap: LuCI root often has only one satisfied child (e.g. admin).
+		 * Rendering the root would put a single "Administration" row in #mainmenu; dock/desktop
+		 * would then miss Status / System / Network / Services. Use the active modemenu branch. */
+		var branches = ui.menu.getChildren(tree);
+		if (!branches.length) {
+			this.renderMainMenu(tree, '');
+			return;
+		}
+		var req = (typeof L !== 'undefined' && L.env && L.env.requestpath && L.env.requestpath.length)
+			? L.env.requestpath[0] : null;
+		var branch = branches[0];
+		for (var i = 0; i < branches.length; i++) {
+			if (req && branches[i].name === req) {
+				branch = branches[i];
+				break;
+			}
+		}
+		this.renderMainMenu(branch, branch.name);
 	},
 
 	renderMainMenu: function(tree, url) {
@@ -28,6 +42,7 @@ return baseclass.extend({
 		mainMenu.style.display = '';
 
 		this.setActiveItems(mainMenu);
+		document.dispatchEvent(new Event('desktop-menu-updated'));
 	},
 
 	renderMenuLevel: function(tree, parentUrl, level) {

@@ -572,9 +572,15 @@ setInterval(pollUsb, 30000);
 setInterval(pollSyslog, 8000);
 
 /* ===== Build Dock & Desktop Icons ===== */
-document.addEventListener('DOMContentLoaded', function() {
-	setTimeout(buildUI, 150);
-});
+var _dockBuildAttempts = 0;
+function scheduleBuildUI() {
+	setTimeout(buildUI, 80);
+}
+document.addEventListener('desktop-menu-updated', scheduleBuildUI);
+if (document.readyState === 'loading')
+	document.addEventListener('DOMContentLoaded', scheduleBuildUI);
+else
+	scheduleBuildUI();
 
 function buildUI() {
 	var menuEl = document.getElementById('mainmenu');
@@ -590,13 +596,14 @@ function buildUI() {
 	// We always build dock
 	if (!dockContainer) return;
 
-	// Collect menu items
+	// Collect menu items (only direct children of .l1 — Status, System, Network, …)
 	var items = [];
 	if (topItems) {
 		topItems.forEach(function(li) {
 			var a = li.querySelector(':scope > a');
 			if (!a) return;
-			var name = a.textContent.trim();
+			var mt = a.querySelector('.menu-text');
+			var name = (mt && mt.textContent) ? mt.textContent.trim() : a.textContent.trim();
 			var href = a.getAttribute('href') || '#';
 			if (name === 'Logout') return;
 			var isActive = li.classList.contains('active');
@@ -604,14 +611,34 @@ function buildUI() {
 		});
 	}
 
-	// If no menu yet (may need time), use fallback from page data
-	if (items.length === 0) {
-		items = [
-			{ name: 'Status', href: '#', active: true },
-			{ name: 'System', href: '#', active: false },
-			{ name: 'Network', href: '#', active: false },
-			{ name: 'Services', href: '#', active: false },
+	function fallbackDockItems() {
+		if (typeof L !== 'undefined' && typeof L.url === 'function') {
+			return [
+				{ name: 'Status', href: L.url('admin/status/overview'), active: true },
+				{ name: 'System', href: L.url('admin/system/system'), active: false },
+				{ name: 'Network', href: L.url('admin/network/network'), active: false },
+				{ name: 'Services', href: L.url('admin/services'), active: false }
+			];
+		}
+		return [
+			{ name: 'Status', href: '/cgi-bin/luci/admin/status/overview', active: true },
+			{ name: 'System', href: '/cgi-bin/luci/admin/system/system', active: false },
+			{ name: 'Network', href: '/cgi-bin/luci/admin/network/network', active: false },
+			{ name: 'Services', href: '/cgi-bin/luci/admin/services', active: false }
 		];
+	}
+
+	var allHash = items.length && items.every(function(i) { return !i.href || i.href === '#' || i.href.charAt(0) === '#'; });
+	if (items.length === 0 || allHash) {
+		if (_dockBuildAttempts < 50) {
+			_dockBuildAttempts++;
+			setTimeout(buildUI, 120);
+			return;
+		}
+		_dockBuildAttempts = 0;
+		items = fallbackDockItems();
+	} else {
+		_dockBuildAttempts = 0;
 	}
 
 	// Build dock
@@ -666,6 +693,17 @@ function setWindowTitle() {
 var winMax = document.getElementById('winMaximize');
 var winMin = document.getElementById('winMinimize');
 var appWin = document.getElementById('appWindow');
+var winClose = document.querySelector('a.win-close');
+if (winClose) {
+	/* Capture: LuCI may intercept same-origin <a>; corner resize handle used to steal clicks */
+	winClose.addEventListener('click', function(e) {
+		var href = winClose.getAttribute('href');
+		if (!href || href === '#') return;
+		e.preventDefault();
+		e.stopImmediatePropagation();
+		window.location.assign(href);
+	}, true);
+}
 
 if (winMax && appWin) {
 	winMax.addEventListener('click', function() {
