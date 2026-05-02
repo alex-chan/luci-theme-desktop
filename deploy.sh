@@ -4,7 +4,7 @@
 
 set -e
 
-ROUTER=${1:-192.168.1.1}
+ROUTER=${1:-192.168.100.2}
 SRC="$(cd "$(dirname "$0")" && pwd)"
 
 echo "🖥️  luci-theme-desktop Deployer"
@@ -22,19 +22,19 @@ ssh root@$ROUTER "mkdir -p \
 
 # Deploy CSS
 echo "🎨 Deploying CSS..."
-scp -q "$SRC/htdocs/luci-static/desktop/css/cascade.css" root@$ROUTER:/www/luci-static/desktop/css/
+scp -O -q "$SRC/htdocs/luci-static/desktop/css/cascade.css" root@$ROUTER:/www/luci-static/desktop/css/
 
 # Deploy favicon
 echo "🔷 Deploying favicon..."
-scp -q "$SRC/htdocs/luci-static/desktop/favicon.ico" root@$ROUTER:/www/luci-static/desktop/
+scp -O -q "$SRC/htdocs/luci-static/desktop/favicon.ico" root@$ROUTER:/www/luci-static/desktop/
 
 # Deploy JS
 echo "⚡ Deploying JavaScript..."
-scp -q "$SRC/htdocs/luci-static/resources/menu-desktop.js" root@$ROUTER:/www/luci-static/resources/
+scp -O -q "$SRC/htdocs/luci-static/resources/menu-desktop.js" root@$ROUTER:/www/luci-static/resources/
 
 # Deploy templates
 echo "📄 Deploying templates..."
-scp -q "$SRC/ucode/template/themes/desktop/"*.ut root@$ROUTER:/usr/share/ucode/luci/template/themes/desktop/
+scp -O -q "$SRC/ucode/template/themes/desktop/"*.ut root@$ROUTER:/usr/share/ucode/luci/template/themes/desktop/
 
 # Set as default theme + restart services
 echo "⚙️  Setting default theme..."
