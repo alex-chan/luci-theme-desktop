@@ -40,6 +40,17 @@
 (function() {
 'use strict';
 
+var _pendingDesktopOpen = [];
+document.addEventListener('desktop-open-luci', function(ev) {
+	var d = ev.detail || {};
+	if (!d.href) return;
+	var fn = window.__desktopOpenLuciImpl;
+	if (typeof fn === 'function')
+		fn(d);
+	else
+		_pendingDesktopOpen.push(d);
+});
+
 /* LuCI has no L.ubus(); use rpc.declare() after L.require('rpc') */
 L.require('rpc').then(function(rpc) {
 	function makeUbusInvoke(r) {
@@ -300,7 +311,8 @@ function openDesktopWindow(href, title) {
 	var frame = document.createElement('iframe');
 	frame.className = 'desk-win-frame';
 	frame.setAttribute('title', winTitle);
-	frame.setAttribute('src', abs);
+	var sep = abs.indexOf('?') >= 0 ? '&' : '?';
+	frame.setAttribute('src', abs + sep + '__deskwin=' + Date.now());
 
 	win.appendChild(tb);
 	win.appendChild(frame);
@@ -333,26 +345,9 @@ function openDesktopWindow(href, title) {
 	syncDockOpenIndicators();
 }
 
-/* Desktop: <button> avoids LuCI global <a> handling; still support <a> if present. */
+/* Desktop app launch: header.ut registers capture click before luci.js → desktop-open-luci. */
 function bindDesktopAppOpen(el, href, title) {
-	if (!el || el._desktopAppOpenBound) return;
-	el._desktopAppOpenBound = true;
-	function launch(e) {
-		if (!document.body.classList.contains('is-desktop')) return;
-		if (e.ctrlKey || e.metaKey || e.shiftKey) return;
-		var h = el.dataset.appHref || el.getAttribute('data-app-href') || el.getAttribute('href');
-		if (!menuItemHrefValid(h)) return;
-		e.preventDefault();
-		e.stopPropagation();
-		e.stopImmediatePropagation();
-		var t = title || el.getAttribute('title') || el.getAttribute('aria-label') || '';
-		if (!t) {
-			var nm = el.querySelector('.desktop-app-name');
-			if (nm) t = nm.textContent.trim();
-		}
-		openDesktopWindow(h, t);
-	}
-	el.addEventListener('click', launch, true);
+	if (el) el._desktopAppOpenBound = true;
 }
 
 /* ===== Clock ===== */
@@ -1138,6 +1133,13 @@ if (winMin && appWin) {
 		sidebar.appendChild(cloned);
 	}, 200);
 })();
+
+window.__desktopOpenLuciImpl = function(d) {
+	if (menuItemHrefValid(d.href))
+		openDesktopWindow(d.href, d.title || '');
+};
+while (_pendingDesktopOpen.length)
+	window.__desktopOpenLuciImpl(_pendingDesktopOpen.shift());
 
 }); /* L.require('rpc') */
 })();

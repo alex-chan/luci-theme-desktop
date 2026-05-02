@@ -54,6 +54,34 @@
 	{% endif -%}
 	<script src="{{ dispatcher.build_url('admin/translations', dispatcher.lang) }}?v={{ version.luciversion }}"></script>
 	<script src="{{ resource }}/cbi.js?v={{ version.luciversion }}"></script>
+	<script>
+	(function() {
+		function deskHrefOk(h) {
+			return h && h !== '#' && h.charAt(0) !== '#';
+		}
+		document.addEventListener('click', function(e) {
+			var b = document.body;
+			if (!b || !b.classList.contains('is-desktop')) return;
+			if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
+			var el = e.target && e.target.closest && e.target.closest('button.dock-icon, button.desktop-app');
+			if (!el) return;
+			var h = el.getAttribute('data-app-href');
+			if (!deskHrefOk(h)) return;
+			e.preventDefault();
+			e.stopPropagation();
+			e.stopImmediatePropagation();
+			var title = el.getAttribute('title') || el.getAttribute('aria-label') || '';
+			if (!title) {
+				var nm = el.querySelector('.desktop-app-name');
+				if (nm) title = (nm.textContent || '').trim();
+			}
+			document.dispatchEvent(new CustomEvent('desktop-open-luci', {
+				bubbles: true,
+				detail: { href: h, title: title }
+			}));
+		}, true);
+	})();
+	</script>
 	<script src="{{ resource }}/luci.js?v={{ version.luciversion }}"></script>
 </head>
 <body class="lang_{{ dispatcher.lang }} {% if (isDesktop): %}is-desktop{% else %}is-app{% endif %} {% if (ctx.authsession): %}logged-in{% endif %}"
