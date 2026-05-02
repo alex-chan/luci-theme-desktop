@@ -23,7 +23,14 @@ setup('authenticate LuCI', async ({ page }) => {
   if (hasForm) {
     await page.locator('input[name="luci_username"]').fill(user);
     await passwordInput.fill(pass);
-    await page.locator('input.cbi-button-apply[type="submit"]').click();
+    // Desktop theme (sysauth.ut): <button type="submit" class="login-btn">.
+    // Stock LuCI: <input type="submit" class="cbi-button-apply" />.
+    await page
+      .locator(
+        'form button[type="submit"], input.cbi-button-apply[type="submit"]',
+      )
+      .first()
+      .click();
   }
 
   await expect(page.locator('.status-bar')).toBeVisible({ timeout: 45_000 });
