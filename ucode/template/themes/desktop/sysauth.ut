@@ -22,7 +22,7 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 	<title>{{ hostname }} - Login</title>
 	<meta name="robots" content="noindex, nofollow">
-	<meta name="theme-color" content="#0f1123">
+	<meta name="theme-color" content="#1c2548">
 	<meta name="apple-mobile-web-app-capable" content="yes">
 	<link rel="icon" type="image/x-icon" href="{{ media }}/favicon.ico">
 	<link rel="preconnect" href="https://fonts.googleapis.com">
@@ -31,13 +31,13 @@
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 	<style>
 		:root {
-			--bg-primary: #0f1123;
-			--accent-primary: #7c4dff;
-			--accent-secondary: #536dfe;
-			--text-primary: #e8eaf6;
-			--text-secondary: #9fa8da;
-			--text-muted: #7986cb;
-			--border-color: rgba(255,255,255,0.08);
+			--bg-primary: #1c2548;
+			--accent-primary: #8f6fff;
+			--accent-secondary: #6b7fff;
+			--text-primary: #f2f4fc;
+			--text-secondary: #b4bce8;
+			--text-muted: #8b94c9;
+			--border-color: rgba(255,255,255,0.12);
 			--font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 		}
 		*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -52,10 +52,10 @@
 		.login-bg {
 			position: fixed; inset: 0;
 			background:
-				radial-gradient(ellipse at 30% 40%, rgba(124,77,255,0.2) 0%, transparent 50%),
-				radial-gradient(ellipse at 70% 60%, rgba(83,109,254,0.15) 0%, transparent 50%),
-				radial-gradient(ellipse at 50% 90%, rgba(105,240,174,0.08) 0%, transparent 50%),
-				linear-gradient(135deg, #0f1123 0%, #1a1b3a 50%, #0f1123 100%);
+				radial-gradient(ellipse at 30% 40%, rgba(143,111,255,0.24) 0%, transparent 50%),
+				radial-gradient(ellipse at 70% 60%, rgba(107,127,255,0.18) 0%, transparent 50%),
+				radial-gradient(ellipse at 50% 90%, rgba(105,240,174,0.1) 0%, transparent 50%),
+				linear-gradient(135deg, #1c2548 0%, #283464 50%, #1c2548 100%);
 			animation: bgPulse 20s ease-in-out infinite alternate;
 		}
 		@keyframes bgPulse {
@@ -71,7 +71,7 @@
 			position: absolute;
 			width: 4px; height: 4px;
 			border-radius: 50%;
-			background: rgba(124,77,255,0.3);
+			background: rgba(143,111,255,0.35);
 			animation: float linear infinite;
 		}
 		@keyframes float {
@@ -90,13 +90,13 @@
 
 		.login-card {
 			width: 100%; max-width: 420px;
-			background: rgba(22, 25, 52, 0.85);
+			background: rgba(42, 52, 98, 0.88);
 			backdrop-filter: blur(32px) saturate(180%);
 			-webkit-backdrop-filter: blur(32px) saturate(180%);
 			border: 1px solid var(--border-color);
 			border-radius: 24px;
 			padding: 48px 40px;
-			box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+			box-shadow: 0 8px 40px rgba(26,34,68,0.35);
 			animation: cardIn 0.6s ease;
 		}
 		@keyframes cardIn {
@@ -107,18 +107,18 @@
 		.login-logo {
 			width: 64px; height: 64px;
 			margin: 0 auto 24px;
-			background: linear-gradient(135deg, #7c4dff 0%, #536dfe 100%);
+			background: linear-gradient(135deg, #8f6fff 0%, #6b7fff 100%);
 			border-radius: 18px;
 			display: flex; align-items: center; justify-content: center;
 			font-size: 28px; color: #fff;
-			box-shadow: 0 4px 20px rgba(124,77,255,0.4);
+			box-shadow: 0 4px 20px rgba(143,111,255,0.45);
 		}
 
 		.login-title {
 			text-align: center;
 			font-size: 24px; font-weight: 700;
 			margin-bottom: 6px;
-			background: linear-gradient(135deg, #e8eaf6, #7c4dff);
+			background: linear-gradient(135deg, #ffffff, #a78bfa);
 			-webkit-background-clip: text;
 			-webkit-text-fill-color: transparent;
 			background-clip: text;
@@ -146,7 +146,7 @@
 		}
 		.input-wrapper {
 			display: flex; align-items: center;
-			background: rgba(255,255,255,0.06);
+			background: rgba(255,255,255,0.1);
 			border: 1px solid var(--border-color);
 			border-radius: 12px;
 			padding: 0 16px;
@@ -154,7 +154,7 @@
 		}
 		.input-wrapper:focus-within {
 			border-color: var(--accent-primary);
-			box-shadow: 0 0 0 4px rgba(124,77,255,0.15);
+			box-shadow: 0 0 0 4px rgba(143,111,255,0.2);
 		}
 		.input-wrapper i {
 			color: var(--text-muted);
@@ -172,17 +172,17 @@
 			display: flex; align-items: center; justify-content: center;
 			width: 100%; padding: 14px;
 			border: none; border-radius: 12px;
-			background: linear-gradient(135deg, #7c4dff 0%, #536dfe 100%);
+			background: linear-gradient(135deg, #8f6fff 0%, #6b7fff 100%);
 			color: #fff; font-size: 15px; font-weight: 600;
 			font-family: var(--font-family);
 			cursor: pointer;
 			transition: all 0.25s ease;
-			box-shadow: 0 4px 16px rgba(124,77,255,0.3);
+			box-shadow: 0 4px 16px rgba(143,111,255,0.35);
 			margin-top: 8px;
 		}
 		.login-btn:hover {
 			transform: translateY(-2px);
-			box-shadow: 0 6px 24px rgba(124,77,255,0.45);
+			box-shadow: 0 6px 24px rgba(143,111,255,0.5);
 		}
 		.login-btn:active { transform: translateY(0); }
 

@@ -53,7 +53,9 @@ return baseclass.extend({
 			var child = children[i];
 			var name = child.name;
 			var node = child.node;
-			var myUrl = parentUrl + '/' + name;
+			/* Dispatch URL path (e.g. admin/status/overview). NOT node.action.path — that is often a
+			 * view/template id (e.g. admin_status/index) and breaks L.url() into /cgi-bin/luci/admin_status/index */
+			var myUrl = parentUrl ? parentUrl + '/' + name : name;
 
 			if (name === 'logout') continue;
 
@@ -64,9 +66,9 @@ return baseclass.extend({
 			a.className = 'menu-link';
 
 			if (node.action && node.action.path) {
-				a.href = L.url(node.action.path);
+				a.href = L.url(myUrl);
 			} else if (node.children) {
-				var firstChild = this.getFirstChildUrl(node);
+				var firstChild = this.getFirstChildUrl(node, myUrl);
 				a.href = firstChild || '#';
 			} else {
 				a.href = '#';
@@ -92,9 +94,9 @@ return baseclass.extend({
 		return ul;
 	},
 
-	getFirstChildUrl: function(node) {
+	getFirstChildUrl: function(node, pathPrefix) {
 		if (node.action && node.action.path) {
-			return L.url(node.action.path);
+			return L.url(pathPrefix);
 		}
 
 		if (node.children) {
@@ -109,7 +111,9 @@ return baseclass.extend({
 			children.sort(function(a, b) { return a.order - b.order; });
 
 			for (var i = 0; i < children.length; i++) {
-				var url = this.getFirstChildUrl(children[i].node);
+				var cn = children[i].name;
+				var cp = pathPrefix ? pathPrefix + '/' + cn : cn;
+				var url = this.getFirstChildUrl(children[i].node, cp);
 				if (url) return url;
 			}
 		}
