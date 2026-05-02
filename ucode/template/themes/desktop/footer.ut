@@ -69,44 +69,120 @@ function updateClock() {
 	var d = now.getFullYear() + '/' + (now.getMonth()+1).toString().padStart(2,'0') + '/' + now.getDate().toString().padStart(2,'0');
 	var days = ['日','一','二','三','四','五','六'];
 	var el = document.getElementById('sbClock');
-	if (el) el.textContent = m + ':' + h + '  周' + days[now.getDay()] + '  ' + d;
-	// fix: show HH:MM
 	if (el) el.textContent = h + ':' + m + '  周' + days[now.getDay()] + '  ' + d;
 }
 setInterval(updateClock, 1000);
 updateClock();
 
-/* ===== System Stats ===== */
-function pollStats() {
+/* ===== Helper: format bytes ===== */
+function fmtBytes(b) {
+	if (b >= 1073741824) return (b/1073741824).toFixed(1) + ' GB';
+	if (b >= 1048576) return (b/1048576).toFixed(1) + ' MB';
+	if (b >= 1024) return (b/1024).toFixed(1) + ' KB';
+	return b + ' B';
+}
+function setVal(id, v) { var e = document.getElementById(id); if (e) e.textContent = v; }
+function setBar(id, pct) { var e = document.getElementById(id); if (e) e.style.width = Math.min(100, pct) + '%'; }
+
+/* ===== ubus API: System Board Info (once) ===== */
+function pollBoard() {
+	if (typeof L === 'undefined' || !L.resolveDefault) return;
+	L.resolveDefault(L.ubus('system', 'board'), {}).then(function(b) {
+		if (!b) return;
+		setVal('dwModel', b.model || b.board_name || '--');
+		setVal('dwKernel', b.kernel || '--');
+		var fw = (b.release || {});
+		setVal('dwFirmware', (fw.distribution || 'OpenWrt') + ' ' + (fw.version || '') + (fw.revision ? '-' + fw.revision : ''));
+	});
+}
+
+/* ===== ubus API: System Info (polling) ===== */
+function pollSysInfo() {
 	if (typeof L === 'undefined' || !L.resolveDefault) return;
 	L.resolveDefault(L.ubus('system', 'info'), {}).then(function(info) {
 		if (!info) return;
+		// Memory
 		if (info.memory) {
-			var total = info.memory.total || 1;
-			var free = (info.memory.free||0) + (info.memory.buffered||0) + (info.memory.cached||0);
-			var pct = Math.round(((total - free) / total) * 100);
-			var memEl = document.getElementById('memVal');
-			if (memEl) memEl.textContent = pct + '%';
-			var dwMem = document.getElementById('dwMem');
-			if (dwMem) dwMem.textContent = pct + '% (' + Math.round((total-free)/1048576) + '/' + Math.round(total/1048576) + ' MB)';
+			var t = info.memory.total || 1;
+			var f = (info.memory.free||0) + (info.memory.buffered||0) + (info.memory.cached||0);
+			var used = t - f, pct = Math.round((used / t) * 100);
+			setVal('memVal', pct + '%');
+			setVal('dwMem', pct + '%  ' + fmtBytes(used) + ' / ' + fmtBytes(t));
+			setBar('dwMemBar', pct);
 		}
+		// Swap
+		if (info.swap) {
+			var st = info.swap.total || 0, sf = info.swap.free || 0;
+			if (st > 0) {
+				var su = st - sf, sp = Math.round((su / st) * 100);
+				setVal('dwSwap', sp + '%  ' + fmtBytes(su) + ' / ' + fmtBytes(st));
+				setBar('dwSwapBar', sp);
+			} else { setVal('dwSwap', 'N/A'); }
+		}
+		// Load
 		if (info.load) {
-			var load = (info.load[0] / 65536).toFixed(2);
-			var cpuEl = document.getElementById('cpuVal');
-			if (cpuEl) cpuEl.textContent = load;
-			var dwLoad = document.getElementById('dwLoad');
-			if (dwLoad) dwLoad.textContent = load;
+			var l1 = (info.load[0]/65536).toFixed(2), l5 = (info.load[1]/65536).toFixed(2), l15 = (info.load[2]/65536).toFixed(2);
+			setVal('cpuVal', l1);
+			setVal('dwLoad', l1 + ' / ' + l5 + ' / ' + l15);
 		}
-		if (info.uptime) {
-			var up = info.uptime;
-			var dd = Math.floor(up/86400), hh = Math.floor((up%86400)/3600), mm = Math.floor((up%3600)/60);
-			var dwUp = document.getElementById('dwUptime');
-			if (dwUp) dwUp.textContent = dd + 'd ' + hh + 'h ' + mm + 'm';
+		// Uptime
+		if (info.uptime != null) {
+			var u = info.uptime;
+			var dd = Math.floor(u/86400), hh = Math.floor((u%86400)/3600), mm = Math.floor((u%3600)/60);
+			setVal('dwUptime', dd + 'd ' + hh + 'h ' + mm + 'm');
 		}
 	});
 }
-setTimeout(pollStats, 800);
-setInterval(pollStats, 5000);
+
+/* ===== ubus API: Network Interfaces ===== */
+function pollNetwork() {
+	if (typeof L === 'undefined' || !L.resolveDefault) return;
+	L.resolveDefault(L.ubus('network.interface', 'dump'), {}).then(function(data) {
+		var body = document.getElementById('dwNetworkBody');
+		if (!body || !data || !data.interface) return;
+		body.innerHTML = '';
+		data.interface.forEach(function(iface) {
+			if (iface.interface === 'loopback') return;
+			var up = iface.up;
+			var ip = '--';
+			if (iface['ipv4-address'] && iface['ipv4-address'].length)
+				ip = iface['ipv4-address'][0].address;
+			var rx = 0, tx = 0;
+			if (iface.statistics) { rx = iface.statistics.rx_bytes || 0; tx = iface.statistics.tx_bytes || 0; }
+			var dot = '<span style="color:' + (up ? 'var(--ok)' : 'var(--err)') + '">●</span> ';
+			body.innerHTML +=
+				'<div class="dw-row"><span class="dw-label">' + dot + iface.interface.toUpperCase() + '</span><span class="dw-value">' + ip + '</span></div>' +
+				'<div class="dw-row dw-sub"><span class="dw-label">↓' + fmtBytes(rx) + '</span><span class="dw-value">↑' + fmtBytes(tx) + '</span></div>';
+		});
+	});
+}
+
+/* ===== ubus API: Conntrack ===== */
+function pollConntrack() {
+	if (typeof L === 'undefined' || !L.resolveDefault) return;
+	L.resolveDefault(L.ubus('luci', 'getConntrackCount'), {}).then(function(ct) {
+		if (!ct) return;
+		setVal('dwConns', (ct.count || '--') + ' / ' + (ct.limit || '--'));
+		// Estimate TCP/UDP from percentage (exact split requires /proc)
+	}).catch(function() {});
+	// Fallback: read /proc/sys/net/netfilter/nf_conntrack_count via fs
+	L.resolveDefault(L.ubus('file', 'read', { path: '/proc/sys/net/netfilter/nf_conntrack_count' }), {}).then(function(r) {
+		if (r && r.data) setVal('dwConns', r.data.trim());
+	}).catch(function() {});
+	L.resolveDefault(L.ubus('file', 'exec', { command: '/bin/sh', params: ['-c', 'cat /proc/net/nf_conntrack 2>/dev/null | grep -c tcp'] }), {}).then(function(r) {
+		if (r && r.stdout) setVal('dwConnTCP', r.stdout.trim());
+	}).catch(function() {});
+	L.resolveDefault(L.ubus('file', 'exec', { command: '/bin/sh', params: ['-c', 'cat /proc/net/nf_conntrack 2>/dev/null | grep -c udp'] }), {}).then(function(r) {
+		if (r && r.stdout) setVal('dwConnUDP', r.stdout.trim());
+	}).catch(function() {});
+}
+
+/* ===== Start Polling ===== */
+setTimeout(function() { pollBoard(); }, 600);
+setTimeout(function() { pollSysInfo(); pollNetwork(); pollConntrack(); }, 900);
+setInterval(pollSysInfo, 3000);
+setInterval(pollNetwork, 8000);
+setInterval(pollConntrack, 10000);
 
 /* ===== Build Dock & Desktop Icons ===== */
 document.addEventListener('DOMContentLoaded', function() {
@@ -220,9 +296,7 @@ if (winMin && appWin) {
 	var titlebar = document.getElementById('appWinTitlebar');
 	var win = document.getElementById('appWindow');
 	if (!titlebar || !win) return;
-
 	var isDragging = false, startX, startY, origX, origY;
-
 	titlebar.addEventListener('mousedown', function(e) {
 		if (e.target.closest('.win-btn') || e.target.closest('.win-nav') || e.target.tagName === 'A') return;
 		if (win.classList.contains('maximized')) return;
@@ -235,17 +309,66 @@ if (winMin && appWin) {
 	});
 	document.addEventListener('mousemove', function(e) {
 		if (!isDragging) return;
-		var dx = e.clientX - startX, dy = e.clientY - startY;
 		win.style.position = 'fixed';
-		win.style.left = (origX + dx) + 'px';
-		win.style.top = (origY + dy) + 'px';
-		win.style.margin = '0';
-		win.style.transform = 'none';
+		win.style.left = (origX + e.clientX - startX) + 'px';
+		win.style.top = (origY + e.clientY - startY) + 'px';
+		win.style.margin = '0'; win.style.transform = 'none';
 	});
 	document.addEventListener('mouseup', function() {
-		if (isDragging) {
-			isDragging = false;
+		if (isDragging) { isDragging = false; win.style.transition = ''; }
+	});
+})();
+
+/* ===== Window Resize (8 directions) ===== */
+(function() {
+	var win = document.getElementById('appWindow');
+	if (!win) return;
+	var handles = win.querySelectorAll('.resize-handle');
+	if (!handles.length) return;
+	var isResizing = false, dir, startX, startY, origW, origH, origL, origT;
+	var MIN_W = 480, MIN_H = 320;
+
+	handles.forEach(function(h) {
+		h.addEventListener('mousedown', function(e) {
+			if (win.classList.contains('maximized')) return;
+			e.preventDefault(); e.stopPropagation();
+			isResizing = true;
+			dir = h.getAttribute('data-dir');
+			startX = e.clientX; startY = e.clientY;
+			var rect = win.getBoundingClientRect();
+			origW = rect.width; origH = rect.height; origL = rect.left; origT = rect.top;
+			win.style.transition = 'none';
+			// Make sure window is in fixed position mode
+			win.style.position = 'fixed';
+			win.style.left = origL + 'px'; win.style.top = origT + 'px';
+			win.style.margin = '0'; win.style.transform = 'none';
+			win.style.width = origW + 'px'; win.style.height = origH + 'px';
+			win.style.maxWidth = 'none';
+			document.body.style.userSelect = 'none';
+			document.body.style.cursor = getComputedStyle(h).cursor;
+		});
+	});
+
+	document.addEventListener('mousemove', function(e) {
+		if (!isResizing) return;
+		var dx = e.clientX - startX, dy = e.clientY - startY;
+		var newW = origW, newH = origH, newL = origL, newT = origT;
+
+		if (dir.includes('e')) newW = Math.max(MIN_W, origW + dx);
+		if (dir.includes('w')) { newW = Math.max(MIN_W, origW - dx); newL = origL + origW - newW; }
+		if (dir.includes('s')) newH = Math.max(MIN_H, origH + dy);
+		if (dir.includes('n')) { newH = Math.max(MIN_H, origH - dy); newT = origT + origH - newH; }
+
+		win.style.width = newW + 'px'; win.style.height = newH + 'px';
+		win.style.left = newL + 'px'; win.style.top = newT + 'px';
+	});
+
+	document.addEventListener('mouseup', function() {
+		if (isResizing) {
+			isResizing = false;
 			win.style.transition = '';
+			document.body.style.userSelect = '';
+			document.body.style.cursor = '';
 		}
 	});
 })();

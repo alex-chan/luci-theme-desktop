@@ -55,6 +55,10 @@ a{color:var(--accent2);text-decoration:none;transition:color var(--tr)}a:hover{c
 .dw-card-body{padding:10px 14px}
 .dw-row{display:flex;justify-content:space-between;padding:4px 0;font-size:12px}
 .dw-label{color:var(--text3)}.dw-value{color:var(--text);font-weight:500;font-variant-numeric:tabular-nums}
+.dw-sub{font-size:11px;opacity:.7;padding:1px 0 6px}
+.dw-progress{height:4px;background:rgba(255,255,255,.08);border-radius:2px;margin:2px 0 6px;overflow:hidden}
+.dw-progress-bar{height:100%;background:var(--grad);border-radius:2px;transition:width .6s ease}
+.dw-progress-swap .dw-progress-bar{background:linear-gradient(135deg,#ffd740,#ff9100)}
 
 /* ===== Bottom Dock ===== */
 .dock{position:fixed;bottom:0;left:0;right:0;height:var(--dock-h);z-index:200;display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px;pointer-events:none}
@@ -66,10 +70,22 @@ a{color:var(--accent2);text-decoration:none;transition:color var(--tr)}a:hover{c
 
 /* ===== App Window ===== */
 .app-window-container{position:fixed;top:var(--bar-h);left:0;right:0;bottom:var(--dock-h);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px}
-.app-window{width:95%;max-width:1200px;height:100%;background:var(--surface);backdrop-filter:blur(20px) saturate(160%);-webkit-backdrop-filter:blur(20px) saturate(160%);border:1px solid var(--border);border-radius:14px;box-shadow:0 12px 48px rgba(0,0,0,.45);display:flex;flex-direction:column;overflow:hidden;animation:winOpen .35s cubic-bezier(.16,1,.3,1);transition:all var(--tr)}
+.app-window{position:relative;width:95%;max-width:1200px;height:100%;background:var(--surface);backdrop-filter:blur(20px) saturate(160%);-webkit-backdrop-filter:blur(20px) saturate(160%);border:1px solid var(--border);border-radius:14px;box-shadow:0 12px 48px rgba(0,0,0,.45);display:flex;flex-direction:column;overflow:hidden;animation:winOpen .35s cubic-bezier(.16,1,.3,1);transition:all var(--tr)}
 @keyframes winOpen{from{opacity:0;transform:scale(.92) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
 .app-window.maximized{width:100%;max-width:100%;height:100%;border-radius:0;margin:0}
 .app-window.minimized{transform:scale(.1) translateY(200%);opacity:0;pointer-events:none}
+
+/* Window Resize Handles */
+.resize-handle{position:absolute;z-index:10}
+.rh-n{top:-3px;left:12px;right:12px;height:6px;cursor:n-resize}
+.rh-s{bottom:-3px;left:12px;right:12px;height:6px;cursor:s-resize}
+.rh-e{right:-3px;top:12px;bottom:12px;width:6px;cursor:e-resize}
+.rh-w{left:-3px;top:12px;bottom:12px;width:6px;cursor:w-resize}
+.rh-ne{top:-3px;right:-3px;width:14px;height:14px;cursor:ne-resize}
+.rh-nw{top:-3px;left:-3px;width:14px;height:14px;cursor:nw-resize}
+.rh-se{bottom:-3px;right:-3px;width:14px;height:14px;cursor:se-resize}
+.rh-sw{bottom:-3px;left:-3px;width:14px;height:14px;cursor:sw-resize}
+.app-window.maximized .resize-handle{display:none}
 
 /* Window Titlebar */
 .app-win-titlebar{height:40px;background:rgba(0,0,0,.25);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:12px;flex-shrink:0;cursor:default;user-select:none;-webkit-user-select:none}
