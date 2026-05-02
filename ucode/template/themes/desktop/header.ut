@@ -1,0 +1,144 @@
+{#
+	Desktop Theme for LuCI - fnOS-style Desktop OS
+	A true desktop environment with app icons, windows, and dock
+	Copyright 2024-2026
+
+	Licensed to the public under the Apache License 2.0
+-#}
+
+{%
+	import { readfile, access } from 'fs';
+	import { cursor } from 'uci';
+	import { getuid, getspnam } from 'luci.core';
+
+	const boardinfo = ubus.call("system", "board");
+	const hostname = striptags(boardinfo?.hostname ?? '?');
+	const model = striptags(boardinfo?.model ?? 'OpenWrt Device');
+
+	let cfg = cursor();
+	http.prepare_content('text/html; charset=UTF-8');
+
+	// Determine if we're on the root/overview page (show desktop icons) or a sub-page (show window)
+	const pathStr = join('/', ctx.request_path);
+	const isDesktop = (pathStr == '/admin' || pathStr == '/admin/' || pathStr == '/admin/status' || pathStr == '/admin/status/overview');
+-%}
+<!DOCTYPE html>
+<html lang="{{ dispatcher.lang }}">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<title>{{ hostname }}{{ node?.title ? ` - ${striptags(node.title)}` : '' }}</title>
+	<meta name="robots" content="noindex, nofollow">
+	<meta name="theme-color" content="#0a0e27">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+	<link rel="icon" type="image/x-icon" href="{{ media }}/favicon.ico">
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+	<link rel="stylesheet" href="{{ media }}/css/cascade.css">
+	{% if (node?.css): %}
+	<link rel="stylesheet" href="{{ resource }}/{{ node.css }}">
+	{% endif -%}
+	{% if (css): %}
+	<style>{{ css }}</style>
+	{% endif -%}
+	<script src="{{ dispatcher.build_url('admin/translations', dispatcher.lang) }}?v={{ version.luciversion }}"></script>
+	<script src="{{ resource }}/cbi.js?v={{ version.luciversion }}"></script>
+	<script src="{{ resource }}/luci.js?v={{ version.luciversion }}"></script>
+</head>
+<body class="lang_{{ dispatcher.lang }} {% if (isDesktop): %}is-desktop{% else %}is-app{% endif %} {% if (ctx.authsession): %}logged-in{% endif %}"
+	data-page="{{ entityencode(join('-', ctx.request_path), true) }}"
+	data-hostname="{{ hostname }}"
+	data-model="{{ model }}">
+
+	<!-- Wallpaper -->
+	<div class="wallpaper" id="wallpaper"></div>
+
+	<!-- ===== Top Status Bar ===== -->
+	<div class="status-bar">
+		<div class="status-bar-left">
+			<div class="sb-logo"><i class="fas fa-cube"></i></div>
+			<span class="sb-hostname">{{ hostname }}</span>
+		</div>
+		<div class="status-bar-center">
+			{% if (!isDesktop): %}
+			<span class="sb-app-name" id="sbAppName"></span>
+			{% endif %}
+		</div>
+		<div class="status-bar-right">
+			<div class="sb-item" id="sb-indicators"><div id="indicators" style="display:flex;gap:6px;align-items:center;"></div></div>
+			<div class="sb-item sb-widget" id="sbCpu" title="CPU"><i class="fas fa-microchip"></i><span id="cpuVal">--</span></div>
+			<div class="sb-item sb-widget" id="sbMem" title="Memory"><i class="fas fa-memory"></i><span id="memVal">--%</span></div>
+			<div class="sb-item sb-clock" id="sbClock"></div>
+			<div class="sb-item sb-user" id="sbUser" title="{{ hostname }}"><i class="fas fa-power-off"></i></div>
+		</div>
+	</div>
+
+	<!-- ===== Desktop Icons Area (shown on desktop/overview) ===== -->
+	{% if (isDesktop): %}
+	<div class="desktop-icons-area" id="desktopArea">
+		<div class="desktop-welcome">
+			<h1 class="welcome-title">{{ hostname }}</h1>
+			<p class="welcome-sub">{{ model }}</p>
+		</div>
+		<div class="desktop-grid" id="desktopGrid">
+			<!-- Icons populated by JS from LuCI menu -->
+		</div>
+
+		<!-- Desktop Widgets -->
+		<div class="desktop-widgets" id="desktopWidgets">
+			<div class="dw-card dw-sysinfo">
+				<div class="dw-card-header"><i class="fas fa-info-circle"></i> System</div>
+				<div class="dw-card-body">
+					<div class="dw-row"><span class="dw-label">Uptime</span><span class="dw-value" id="dwUptime">--</span></div>
+					<div class="dw-row"><span class="dw-label">Load</span><span class="dw-value" id="dwLoad">--</span></div>
+					<div class="dw-row"><span class="dw-label">Memory</span><span class="dw-value" id="dwMem">--</span></div>
+				</div>
+			</div>
+		</div>
+	</div>
+	{% endif %}
+
+	<!-- ===== App Window (shown on sub-pages) ===== -->
+	{% if (!isDesktop): %}
+	<div class="app-window-container" id="appWindowContainer">
+		<div class="app-window" id="appWindow">
+			<div class="app-win-titlebar" id="appWinTitlebar">
+				<div class="win-traffic-lights">
+					<a class="win-btn win-close" href="{{ dispatcher.build_url('admin/status/overview') }}" title="Close"></a>
+					<span class="win-btn win-minimize" id="winMinimize" title="Minimize"></span>
+					<span class="win-btn win-maximize" id="winMaximize" title="Maximize"></span>
+				</div>
+				<div class="win-title" id="winTitle"></div>
+				<div class="win-nav">
+					<div id="tabmenu" style="display:none"></div>
+				</div>
+			</div>
+			<!-- Sidebar within window -->
+			<div class="app-win-body">
+				<div class="app-win-sidebar" id="appWinSidebar">
+					<div id="mainmenu" style="display:none"></div>
+				</div>
+				<div class="app-win-content" id="maincontent">
+					<div class="container">
+						{% if (getuid() == 0 && getspnam('root')?.pwdp === ''): %}
+						<div class="alert-msg alert-warning">
+							<i class="fas fa-exclamation-triangle alert-icon"></i>
+							<div>
+								<strong>{{ _('No password set!') }}</strong>
+								<p>{{ _('There is no password set on this router. Please configure a root password to protect the web interface.') }}</p>
+								{% if (dispatcher.lookup("admin/system/admin")): %}
+								<a class="btn btn-accent" href="{{ dispatcher.build_url("admin/system/admin") }}">{{ _('Go to password configuration...') }}</a>
+								{% endif %}
+							</div>
+						</div>
+						{% endif %}
+						<noscript>
+							<div class="alert-msg alert-error">
+								<i class="fas fa-times-circle alert-icon"></i>
+								<div><strong>{{ _('JavaScript required!') }}</strong>
+								<p>{{ _('You must enable JavaScript in your browser or LuCI will not work properly.') }}</p></div>
+							</div>
+						</noscript>

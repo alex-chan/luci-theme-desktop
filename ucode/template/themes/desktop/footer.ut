@@ -1,0 +1,306 @@
+{#
+	Desktop Theme Footer - Dock, Desktop Logic, Window Management
+	Copyright 2024-2026 - Apache License 2.0
+-#}
+
+					</div><!-- /.container -->
+				</div><!-- /.app-win-content -->
+			</div><!-- /.app-win-body -->
+		</div><!-- /.app-window -->
+	</div><!-- /.app-window-container -->
+	{% endif %}
+
+	<!-- ===== Bottom Dock ===== -->
+	<div class="dock" id="dock">
+		<div class="dock-container" id="dockContainer">
+			<!-- Populated by JS -->
+		</div>
+	</div>
+
+	<!-- Hidden footer for LuCI compat -->
+	<footer style="display:none">
+		<a href="https://github.com/openwrt/luci">{{ version.luciname }} ({{ version.luciversion }})</a>
+		<a>DesktopTheme {# vPKG_VERSION #}</a>
+		<a href="{{ version.disturl }}">{{ version.distname }} {{ version.distversion }}-{{ version.distrevision }}</a>
+		<ul class="breadcrumb pull-right" id="modemenu" style="display:none"></ul>
+	</footer>
+
+<script>
+(function() {
+'use strict';
+
+/* ===== App Icon Definitions ===== */
+var APP_ICONS = {
+	'Status':       { icon: 'fas fa-chart-pie',        gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
+	'System':       { icon: 'fas fa-cog',              gradient: 'linear-gradient(135deg, #89929b 0%, #59636e 100%)' },
+	'Network':      { icon: 'fas fa-network-wired',    gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' },
+	'Services':     { icon: 'fas fa-server',           gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' },
+	'Docker':       { icon: 'fab fa-docker',           gradient: 'linear-gradient(135deg, #0396FF 0%, #0d6efd 100%)' },
+	'NAS':          { icon: 'fas fa-hdd',              gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' },
+	'VPN':          { icon: 'fas fa-shield-alt',       gradient: 'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)' },
+	'Firewall':     { icon: 'fas fa-fire',             gradient: 'linear-gradient(135deg, #f5576c 0%, #ff6b6b 100%)' },
+	'Logout':       { icon: 'fas fa-sign-out-alt',     gradient: 'linear-gradient(135deg, #636e72 0%, #b2bec3 100%)' },
+	'Administration':{ icon: 'fas fa-user-shield',     gradient: 'linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%)' },
+	'Software':     { icon: 'fas fa-box-open',         gradient: 'linear-gradient(135deg, #fd79a8 0%, #e84393 100%)' },
+	'Startup':      { icon: 'fas fa-play-circle',      gradient: 'linear-gradient(135deg, #00b894 0%, #55efc4 100%)' },
+	'Scheduled Tasks':{ icon: 'fas fa-clock',          gradient: 'linear-gradient(135deg, #fdcb6e 0%, #e17055 100%)' },
+	'Mount Points': { icon: 'fas fa-hdd',              gradient: 'linear-gradient(135deg, #0984e3 0%, #74b9ff 100%)' },
+	'LED Configuration':{ icon: 'fas fa-lightbulb',    gradient: 'linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%)' },
+	'Reboot':       { icon: 'fas fa-redo',             gradient: 'linear-gradient(135deg, #636e72 0%, #2d3436 100%)' },
+	'Overview':     { icon: 'fas fa-chart-line',       gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
+	'Diagnostics':  { icon: 'fas fa-stethoscope',      gradient: 'linear-gradient(135deg, #00cec9 0%, #81ecec 100%)' },
+	'Interfaces':   { icon: 'fas fa-ethernet',         gradient: 'linear-gradient(135deg, #0984e3 0%, #74b9ff 100%)' },
+	'Wireless':     { icon: 'fas fa-wifi',             gradient: 'linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%)' },
+	'DHCP and DNS': { icon: 'fas fa-globe',            gradient: 'linear-gradient(135deg, #00b894 0%, #55efc4 100%)' },
+	'Switch':       { icon: 'fas fa-random',           gradient: 'linear-gradient(135deg, #fdcb6e 0%, #e17055 100%)' },
+	'Routing':      { icon: 'fas fa-route',            gradient: 'linear-gradient(135deg, #e17055 0%, #d63031 100%)' },
+};
+var DEFAULT_ICON = { icon: 'fas fa-cube', gradient: 'linear-gradient(135deg, #636e72 0%, #b2bec3 100%)' };
+
+function getAppStyle(name) {
+	return APP_ICONS[name] || DEFAULT_ICON;
+}
+
+/* ===== Clock ===== */
+function updateClock() {
+	var now = new Date();
+	var h = now.getHours().toString().padStart(2, '0');
+	var m = now.getMinutes().toString().padStart(2, '0');
+	var d = now.getFullYear() + '/' + (now.getMonth()+1).toString().padStart(2,'0') + '/' + now.getDate().toString().padStart(2,'0');
+	var days = ['日','一','二','三','四','五','六'];
+	var el = document.getElementById('sbClock');
+	if (el) el.textContent = m + ':' + h + '  周' + days[now.getDay()] + '  ' + d;
+	// fix: show HH:MM
+	if (el) el.textContent = h + ':' + m + '  周' + days[now.getDay()] + '  ' + d;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+/* ===== System Stats ===== */
+function pollStats() {
+	if (typeof L === 'undefined' || !L.resolveDefault) return;
+	L.resolveDefault(L.ubus('system', 'info'), {}).then(function(info) {
+		if (!info) return;
+		if (info.memory) {
+			var total = info.memory.total || 1;
+			var free = (info.memory.free||0) + (info.memory.buffered||0) + (info.memory.cached||0);
+			var pct = Math.round(((total - free) / total) * 100);
+			var memEl = document.getElementById('memVal');
+			if (memEl) memEl.textContent = pct + '%';
+			var dwMem = document.getElementById('dwMem');
+			if (dwMem) dwMem.textContent = pct + '% (' + Math.round((total-free)/1048576) + '/' + Math.round(total/1048576) + ' MB)';
+		}
+		if (info.load) {
+			var load = (info.load[0] / 65536).toFixed(2);
+			var cpuEl = document.getElementById('cpuVal');
+			if (cpuEl) cpuEl.textContent = load;
+			var dwLoad = document.getElementById('dwLoad');
+			if (dwLoad) dwLoad.textContent = load;
+		}
+		if (info.uptime) {
+			var up = info.uptime;
+			var dd = Math.floor(up/86400), hh = Math.floor((up%86400)/3600), mm = Math.floor((up%3600)/60);
+			var dwUp = document.getElementById('dwUptime');
+			if (dwUp) dwUp.textContent = dd + 'd ' + hh + 'h ' + mm + 'm';
+		}
+	});
+}
+setTimeout(pollStats, 800);
+setInterval(pollStats, 5000);
+
+/* ===== Build Dock & Desktop Icons ===== */
+document.addEventListener('DOMContentLoaded', function() {
+	setTimeout(buildUI, 150);
+});
+
+function buildUI() {
+	var menuEl = document.getElementById('mainmenu');
+	var topItems;
+	if (menuEl) {
+		topItems = menuEl.querySelectorAll('.l1 > li');
+	}
+
+	var dockContainer = document.getElementById('dockContainer');
+	var desktopGrid = document.getElementById('desktopGrid');
+	var isDesktop = document.body.classList.contains('is-desktop');
+
+	// We always build dock
+	if (!dockContainer) return;
+
+	// Collect menu items
+	var items = [];
+	if (topItems) {
+		topItems.forEach(function(li) {
+			var a = li.querySelector(':scope > a');
+			if (!a) return;
+			var name = a.textContent.trim();
+			var href = a.getAttribute('href') || '#';
+			if (name === 'Logout') return;
+			var isActive = li.classList.contains('active');
+			items.push({ name: name, href: href, active: isActive });
+		});
+	}
+
+	// If no menu yet (may need time), use fallback from page data
+	if (items.length === 0) {
+		items = [
+			{ name: 'Status', href: '#', active: true },
+			{ name: 'System', href: '#', active: false },
+			{ name: 'Network', href: '#', active: false },
+			{ name: 'Services', href: '#', active: false },
+		];
+	}
+
+	// Build dock
+	dockContainer.innerHTML = '';
+	items.forEach(function(item) {
+		var style = getAppStyle(item.name);
+		var el = document.createElement('a');
+		el.className = 'dock-icon' + (item.active ? ' active' : '');
+		el.href = item.href;
+		el.title = item.name;
+		el.innerHTML = '<div class="dock-icon-img" style="background:' + style.gradient + '"><i class="' + style.icon + '"></i></div>';
+		dockContainer.appendChild(el);
+	});
+
+	// Build desktop grid icons
+	if (isDesktop && desktopGrid) {
+		desktopGrid.innerHTML = '';
+		items.forEach(function(item) {
+			var style = getAppStyle(item.name);
+			var el = document.createElement('a');
+			el.className = 'desktop-app';
+			el.href = item.href;
+			el.innerHTML =
+				'<div class="desktop-app-icon" style="background:' + style.gradient + '">' +
+				'<i class="' + style.icon + '"></i></div>' +
+				'<span class="desktop-app-name">' + item.name + '</span>';
+			desktopGrid.appendChild(el);
+		});
+	}
+
+	// Set window title for app pages
+	if (!isDesktop) {
+		setWindowTitle();
+	}
+}
+
+function setWindowTitle() {
+	var menuEl = document.getElementById('mainmenu');
+	if (!menuEl) return;
+	var activeTop = menuEl.querySelector('.l1 > li.slide.active > a');
+	var activeSub = menuEl.querySelector('.l1 > li.slide.active .l2 > li.active > a');
+	var title = '';
+	if (activeTop) title = activeTop.textContent.trim();
+	if (activeSub) title += ' — ' + activeSub.textContent.trim();
+	var winTitle = document.getElementById('winTitle');
+	var sbApp = document.getElementById('sbAppName');
+	if (winTitle) winTitle.textContent = title;
+	if (sbApp) sbApp.textContent = title;
+}
+
+/* ===== Window Controls ===== */
+var winMax = document.getElementById('winMaximize');
+var winMin = document.getElementById('winMinimize');
+var appWin = document.getElementById('appWindow');
+
+if (winMax && appWin) {
+	winMax.addEventListener('click', function() {
+		appWin.classList.toggle('maximized');
+	});
+}
+if (winMin && appWin) {
+	winMin.addEventListener('click', function() {
+		appWin.classList.toggle('minimized');
+	});
+}
+
+/* ===== Window Drag ===== */
+(function() {
+	var titlebar = document.getElementById('appWinTitlebar');
+	var win = document.getElementById('appWindow');
+	if (!titlebar || !win) return;
+
+	var isDragging = false, startX, startY, origX, origY;
+
+	titlebar.addEventListener('mousedown', function(e) {
+		if (e.target.closest('.win-btn') || e.target.closest('.win-nav') || e.target.tagName === 'A') return;
+		if (win.classList.contains('maximized')) return;
+		isDragging = true;
+		startX = e.clientX; startY = e.clientY;
+		var rect = win.getBoundingClientRect();
+		origX = rect.left; origY = rect.top;
+		win.style.transition = 'none';
+		e.preventDefault();
+	});
+	document.addEventListener('mousemove', function(e) {
+		if (!isDragging) return;
+		var dx = e.clientX - startX, dy = e.clientY - startY;
+		win.style.position = 'fixed';
+		win.style.left = (origX + dx) + 'px';
+		win.style.top = (origY + dy) + 'px';
+		win.style.margin = '0';
+		win.style.transform = 'none';
+	});
+	document.addEventListener('mouseup', function() {
+		if (isDragging) {
+			isDragging = false;
+			win.style.transition = '';
+		}
+	});
+})();
+
+/* ===== Dock Hover Magnify Effect ===== */
+(function() {
+	var dock = document.getElementById('dockContainer');
+	if (!dock) return;
+	dock.addEventListener('mousemove', function(e) {
+		var icons = dock.querySelectorAll('.dock-icon');
+		icons.forEach(function(ic) {
+			var rect = ic.getBoundingClientRect();
+			var cx = rect.left + rect.width / 2;
+			var dist = Math.abs(e.clientX - cx);
+			var scale = Math.max(1, 1.35 - dist / 180);
+			var ty = -(scale - 1) * 20;
+			ic.style.transform = 'scale(' + scale + ') translateY(' + ty + 'px)';
+		});
+	});
+	dock.addEventListener('mouseleave', function() {
+		var icons = dock.querySelectorAll('.dock-icon');
+		icons.forEach(function(ic) { ic.style.transform = ''; });
+	});
+})();
+
+/* ===== Sidebar Toggle in Window ===== */
+(function() {
+	var sidebar = document.getElementById('appWinSidebar');
+	if (!sidebar) return;
+	// On sub-pages, show the submenu items
+	var menu = document.getElementById('mainmenu');
+	if (!menu) return;
+	// Build a nice sidebar from the active top-level's children
+	setTimeout(function() {
+		var activeTop = menu.querySelector('.l1 > li.slide.active');
+		if (!activeTop) { sidebar.style.display = 'none'; return; }
+		var subUl = activeTop.querySelector('.l2');
+		if (!subUl || subUl.children.length === 0) { sidebar.style.display = 'none'; return; }
+		// Sidebar is visible with submenu
+		sidebar.innerHTML = '';
+		var title = activeTop.querySelector(':scope > a');
+		if (title) {
+			var h = document.createElement('div');
+			h.className = 'win-sidebar-title';
+			h.textContent = title.textContent.trim();
+			sidebar.appendChild(h);
+		}
+		var cloned = subUl.cloneNode(true);
+		cloned.style.display = '';
+		sidebar.appendChild(cloned);
+	}, 200);
+})();
+
+})();
+</script>
+<script type="text/javascript">L.require('menu-desktop')</script>
+</body>
+</html>

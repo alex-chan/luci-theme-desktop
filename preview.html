@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LuCI Desktop Theme - Preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="htdocs/luci-static/desktop/css/cascade.css">
+<style>.preview-tag{position:fixed;top:var(--bar-h);left:50%;transform:translateX(-50%);z-index:999;background:rgba(124,77,255,.85);color:#fff;padding:4px 16px;border-radius:0 0 10px 10px;font-size:11px;font-weight:600;letter-spacing:.5px;backdrop-filter:blur(8px)}</style>
+</head>
+<body class="is-desktop logged-in" data-hostname="OpenWrt" data-model="x86/64" id="previewBody">
+<div class="preview-tag">⬇ DESKTOP VIEW — Click any app to see WINDOW VIEW</div>
+<div class="wallpaper"></div>
+
+<!-- Status Bar -->
+<div class="status-bar">
+  <div class="status-bar-left">
+    <div class="sb-logo"><i class="fas fa-cube"></i></div>
+    <span class="sb-hostname">OpenWrt</span>
+  </div>
+  <div class="status-bar-center"></div>
+  <div class="status-bar-right">
+    <div class="sb-item sb-widget"><i class="fas fa-microchip"></i><span>0.15</span></div>
+    <div class="sb-item sb-widget"><i class="fas fa-memory"></i><span>42%</span></div>
+    <div class="sb-item sb-clock" id="sbClock"></div>
+    <div class="sb-item sb-user"><i class="fas fa-power-off"></i></div>
+  </div>
+</div>
+
+<!-- Desktop Icons -->
+<div class="desktop-icons-area" id="desktopArea">
+  <div class="desktop-welcome">
+    <h1 class="welcome-title">OpenWrt</h1>
+    <p class="welcome-sub">x86/64 Generic</p>
+  </div>
+  <div class="desktop-grid" id="desktopGrid">
+    <a class="desktop-app" href="#" onclick="openApp('Status','fas fa-chart-pie','linear-gradient(135deg,#667eea,#764ba2)');return false"><div class="desktop-app-icon" style="background:linear-gradient(135deg,#667eea,#764ba2)"><i class="fas fa-chart-pie"></i></div><span class="desktop-app-name">Status</span></a>
+    <a class="desktop-app" href="#" onclick="openApp('System','fas fa-cog','linear-gradient(135deg,#89929b,#59636e)');return false"><div class="desktop-app-icon" style="background:linear-gradient(135deg,#89929b,#59636e)"><i class="fas fa-cog"></i></div><span class="desktop-app-name">System</span></a>
+    <a class="desktop-app" href="#" onclick="openApp('Network','fas fa-network-wired','linear-gradient(135deg,#4facfe,#00f2fe)');return false"><div class="desktop-app-icon" style="background:linear-gradient(135deg,#4facfe,#00f2fe)"><i class="fas fa-network-wired"></i></div><span class="desktop-app-name">Network</span></a>
+    <a class="desktop-app" href="#" onclick="openApp('Firewall','fas fa-fire','linear-gradient(135deg,#f5576c,#ff6b6b)');return false"><div class="desktop-app-icon" style="background:linear-gradient(135deg,#f5576c,#ff6b6b)"><i class="fas fa-fire"></i></div><span class="desktop-app-name">Firewall</span></a>
+    <a class="desktop-app" href="#" onclick="openApp('Services','fas fa-server','linear-gradient(135deg,#43e97b,#38f9d7)');return false"><div class="desktop-app-icon" style="background:linear-gradient(135deg,#43e97b,#38f9d7)"><i class="fas fa-server"></i></div><span class="desktop-app-name">Services</span></a>
+    <a class="desktop-app" href="#" onclick="openApp('Docker','fab fa-docker','linear-gradient(135deg,#0396FF,#0d6efd)');return false"><div class="desktop-app-icon" style="background:linear-gradient(135deg,#0396FF,#0d6efd)"><i class="fab fa-docker"></i></div><span class="desktop-app-name">Docker</span></a>
+    <a class="desktop-app" href="#" onclick="openApp('NAS','fas fa-hdd','linear-gradient(135deg,#fa709a,#fee140)');return false"><div class="desktop-app-icon" style="background:linear-gradient(135deg,#fa709a,#fee140)"><i class="fas fa-hdd"></i></div><span class="desktop-app-name">NAS</span></a>
+    <a class="desktop-app" href="#" onclick="openApp('VPN','fas fa-shield-alt','linear-gradient(135deg,#a18cd1,#fbc2eb)');return false"><div class="desktop-app-icon" style="background:linear-gradient(135deg,#a18cd1,#fbc2eb)"><i class="fas fa-shield-alt"></i></div><span class="desktop-app-name">VPN</span></a>
+    <a class="desktop-app" href="#" onclick="openApp('Software','fas fa-box-open','linear-gradient(135deg,#fd79a8,#e84393)');return false"><div class="desktop-app-icon" style="background:linear-gradient(135deg,#fd79a8,#e84393)"><i class="fas fa-box-open"></i></div><span class="desktop-app-name">Software</span></a>
+    <a class="desktop-app" href="#" onclick="openApp('Diagnostics','fas fa-stethoscope','linear-gradient(135deg,#00cec9,#81ecec)');return false"><div class="desktop-app-icon" style="background:linear-gradient(135deg,#00cec9,#81ecec)"><i class="fas fa-stethoscope"></i></div><span class="desktop-app-name">Diagnostics</span></a>
+  </div>
+  <!-- Widget -->
+  <div class="desktop-widgets">
+    <div class="dw-card">
+      <div class="dw-card-header"><i class="fas fa-info-circle"></i> System</div>
+      <div class="dw-card-body">
+        <div class="dw-row"><span class="dw-label">Uptime</span><span class="dw-value">3d 14h 22m</span></div>
+        <div class="dw-row"><span class="dw-label">Load</span><span class="dw-value">0.15</span></div>
+        <div class="dw-row"><span class="dw-label">Memory</span><span class="dw-value">42% (215/512 MB)</span></div>
+        <div class="dw-row"><span class="dw-label">Firmware</span><span class="dw-value">23.05.3</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- App Window (hidden initially, shown when app clicked) -->
+<div class="app-window-container" id="appWindowContainer" style="display:none">
+  <div class="app-window" id="appWindow">
+    <div class="app-win-titlebar" id="appWinTitlebar">
+      <div class="win-traffic-lights">
+        <span class="win-btn win-close" id="winClose"></span>
+        <span class="win-btn win-minimize" id="winMinimize"></span>
+        <span class="win-btn win-maximize" id="winMaximize"></span>
+      </div>
+      <div class="win-title" id="winTitle">Status — Overview</div>
+      <div class="win-nav"></div>
+    </div>
+    <div class="app-win-body">
+      <div class="app-win-sidebar">
+        <div class="win-sidebar-title" id="sidebarTitle">STATUS</div>
+        <ul class="l2" id="sidebarMenu"></ul>
+      </div>
+      <div class="app-win-content">
+        <div class="container" id="winContent">
+          <!-- Dynamic content -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Dock -->
+<div class="dock" id="dock">
+  <div class="dock-container" id="dockContainer"></div>
+</div>
+
+<script>
+(function(){
+  // Clock
+  function tick(){var n=new Date(),h=n.getHours().toString().padStart(2,'0'),m=n.getMinutes().toString().padStart(2,'0'),d=n.getFullYear()+'/'+(n.getMonth()+1).toString().padStart(2,'0')+'/'+n.getDate().toString().padStart(2,'0'),days=['日','一','二','三','四','五','六'];var e=document.getElementById('sbClock');if(e)e.textContent=h+':'+m+'  周'+days[n.getDay()]+'  '+d}
+  setInterval(tick,1000);tick();
+
+  // Build dock
+  var apps=[
+    {n:'Status',i:'fas fa-chart-pie',g:'linear-gradient(135deg,#667eea,#764ba2)'},
+    {n:'System',i:'fas fa-cog',g:'linear-gradient(135deg,#89929b,#59636e)'},
+    {n:'Network',i:'fas fa-network-wired',g:'linear-gradient(135deg,#4facfe,#00f2fe)'},
+    {n:'Firewall',i:'fas fa-fire',g:'linear-gradient(135deg,#f5576c,#ff6b6b)'},
+    {n:'Services',i:'fas fa-server',g:'linear-gradient(135deg,#43e97b,#38f9d7)'},
+    {n:'Docker',i:'fab fa-docker',g:'linear-gradient(135deg,#0396FF,#0d6efd)'},
+    {n:'NAS',i:'fas fa-hdd',g:'linear-gradient(135deg,#fa709a,#fee140)'},
+    {n:'VPN',i:'fas fa-shield-alt',g:'linear-gradient(135deg,#a18cd1,#fbc2eb)'},
+    {n:'Software',i:'fas fa-box-open',g:'linear-gradient(135deg,#fd79a8,#e84393)'},
+    {n:'Diagnostics',i:'fas fa-stethoscope',g:'linear-gradient(135deg,#00cec9,#81ecec)'},
+  ];
+  var dc=document.getElementById('dockContainer');
+  apps.forEach(function(a){
+    var el=document.createElement('a');el.className='dock-icon';el.href='#';el.title=a.n;
+    el.innerHTML='<div class="dock-icon-img" style="background:'+a.g+'"><i class="'+a.i+'"></i></div>';
+    el.onclick=function(e){e.preventDefault();openApp(a.n,a.i,a.g)};
+    dc.appendChild(el);
+  });
+
+  // Dock magnify
+  dc.addEventListener('mousemove',function(e){
+    var icons=dc.querySelectorAll('.dock-icon');
+    icons.forEach(function(ic){var r=ic.getBoundingClientRect(),cx=r.left+r.width/2,dist=Math.abs(e.clientX-cx),s=Math.max(1,1.4-dist/160),ty=-(s-1)*22;ic.style.transform='scale('+s+') translateY('+ty+'px)'});
+  });
+  dc.addEventListener('mouseleave',function(){dc.querySelectorAll('.dock-icon').forEach(function(ic){ic.style.transform=''})});
+})();
+
+// Sample sub-menus
+var subMenus={
+  'Status':['Overview','Routing','Firewall','System Log','Kernel Log','Processes','Real-time Graphs'],
+  'System':['System','Administration','Software','Startup','Scheduled Tasks','Mount Points','LED Configuration','Reboot'],
+  'Network':['Interfaces','Wireless','DHCP and DNS','Hostnames','Static Routes','Diagnostics','Firewall'],
+  'Firewall':['General','Port Forwards','Traffic Rules','NAT Rules','Custom Rules'],
+  'Services':['AdBlock','ddns','NTP','uhttpd'],
+  'Docker':['Overview','Containers','Images','Networks','Volumes'],
+  'NAS':['Shared Folders','Samba','FTP','WebDAV'],
+  'VPN':['OpenVPN','WireGuard','IPSec'],
+  'Software':['Installed','Available','Updates','Configuration'],
+  'Diagnostics':['Ping','Traceroute','Nslookup','Network Dump'],
+};
+
+// Sample content for each app
+var appContents={
+  'Status':'<h2>System Overview</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:24px"><div class="cbi-section" style="text-align:center;padding:20px"><div style="font-size:28px;margin-bottom:6px"><i class="fas fa-clock" style="color:var(--accent)"></i></div><div style="font-size:11px;color:var(--text3)">Uptime</div><div style="font-size:16px;font-weight:600">3d 14h 22m</div></div><div class="cbi-section" style="text-align:center;padding:20px"><div style="font-size:28px;margin-bottom:6px"><i class="fas fa-microchip" style="color:var(--ok)"></i></div><div style="font-size:11px;color:var(--text3)">CPU Load</div><div style="font-size:16px;font-weight:600">0.15</div></div><div class="cbi-section" style="text-align:center;padding:20px"><div style="font-size:28px;margin-bottom:6px"><i class="fas fa-memory" style="color:var(--warn)"></i></div><div style="font-size:11px;color:var(--text3)">Memory</div><div style="font-size:16px;font-weight:600">215 / 512 MB</div></div><div class="cbi-section" style="text-align:center;padding:20px"><div style="font-size:28px;margin-bottom:6px"><i class="fas fa-hdd" style="color:var(--info)"></i></div><div style="font-size:11px;color:var(--text3)">Storage</div><div style="font-size:16px;font-weight:600">1.2 / 8 GB</div></div></div><div class="cbi-section"><h3>System Information</h3><table><tr><td style="width:160px;color:var(--text3)">Hostname</td><td><strong>OpenWrt</strong></td></tr><tr><td style="color:var(--text3)">Model</td><td>x86/64</td></tr><tr><td style="color:var(--text3)">Architecture</td><td>x86_64</td></tr><tr><td style="color:var(--text3)">Firmware</td><td>OpenWrt 23.05.3</td></tr><tr><td style="color:var(--text3)">Kernel</td><td>5.15.150</td></tr></table></div><div class="cbi-section"><h3>Resource Usage</h3><div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:13px"><span style="color:var(--text2)">Memory</span><span style="font-weight:500">42%</span></div><div class="cbi-progressbar"><div style="width:42%"></div></div></div><div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:13px"><span style="color:var(--text2)">Swap</span><span style="font-weight:500">8%</span></div><div class="cbi-progressbar"><div style="width:8%"></div></div></div><div><div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:13px"><span style="color:var(--text2)">Disk</span><span style="font-weight:500">15%</span></div><div class="cbi-progressbar"><div style="width:15%"></div></div></div></div>',
+  'Network':'<h2>Network Interfaces</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-bottom:20px"><div class="ifacebox"><div class="ifacebox-head"><i class="fas fa-ethernet" style="margin-right:8px;color:var(--ok)"></i>br-lan (LAN)</div><div class="ifacebox-body"><div style="font-size:13px;color:var(--text2);line-height:1.8">Protocol: <strong style="color:var(--text)">Static</strong><br>Address: <strong style="color:var(--text)">192.168.1.1/24</strong><br>RX: <strong style="color:var(--ok)">1.2 GB</strong> TX: <strong style="color:var(--info)">3.4 GB</strong></div></div></div><div class="ifacebox"><div class="ifacebox-head"><i class="fas fa-globe" style="margin-right:8px;color:var(--info)"></i>eth1 (WAN)</div><div class="ifacebox-body"><div style="font-size:13px;color:var(--text2);line-height:1.8">Protocol: <strong style="color:var(--text)">DHCP</strong><br>Address: <strong style="color:var(--text)">100.64.0.12/24</strong><br>RX: <strong style="color:var(--ok)">5.6 GB</strong> TX: <strong style="color:var(--info)">1.8 GB</strong></div></div></div></div>',
+};
+
+function openApp(name,icon,grad){
+  document.getElementById('desktopArea').style.display='none';
+  document.getElementById('appWindowContainer').style.display='flex';
+  document.getElementById('winTitle').textContent=name;
+  document.getElementById('sidebarTitle').textContent=name.toUpperCase();
+  document.querySelector('.preview-tag').textContent='⬆ WINDOW VIEW — "' + name + '" app open';
+
+  // Build sidebar
+  var sm=document.getElementById('sidebarMenu');sm.innerHTML='';
+  var subs=subMenus[name]||['Overview'];
+  subs.forEach(function(s,i){
+    var li=document.createElement('li');if(i===0)li.className='active';
+    var a=document.createElement('a');a.href='#';a.textContent=s;
+    a.onclick=function(e){e.preventDefault();sm.querySelectorAll('li').forEach(function(x){x.className=''});li.className='active'};
+    li.appendChild(a);sm.appendChild(li);
+  });
+
+  // Content
+  var wc=document.getElementById('winContent');
+  wc.innerHTML=appContents[name]||('<h2>'+name+'</h2><div class="cbi-section"><h3>Configuration</h3><div class="cbi-value"><label class="cbi-value-title">Enable</label><div class="cbi-value-field"><input type="checkbox" checked></div></div><div class="cbi-value"><label class="cbi-value-title">Name</label><div class="cbi-value-field"><input type="text" value="'+name+'"></div></div><div class="cbi-value"><label class="cbi-value-title">Mode</label><div class="cbi-value-field"><select><option>Auto</option><option>Manual</option></select></div></div><div class="cbi-page-actions"><input type="button" class="cbi-button cbi-button-save" value="Save"><input type="button" class="cbi-button cbi-button-apply" value="Save & Apply"><input type="button" class="cbi-button cbi-button-reset" value="Reset"></div></div>');
+
+  // Dock active state
+  document.querySelectorAll('.dock-icon').forEach(function(d){d.classList.remove('active');if(d.title===name)d.classList.add('active')});
+
+  // Reset window state
+  var w=document.getElementById('appWindow');
+  w.classList.remove('maximized','minimized');
+  w.style.position='';w.style.left='';w.style.top='';w.style.margin='';w.style.transform='';
+}
+
+// Window controls
+document.getElementById('winClose').onclick=function(){
+  document.getElementById('appWindowContainer').style.display='none';
+  document.getElementById('desktopArea').style.display='flex';
+  document.querySelector('.preview-tag').textContent='⬇ DESKTOP VIEW — Click any app to see WINDOW VIEW';
+  document.querySelectorAll('.dock-icon').forEach(function(d){d.classList.remove('active')});
+};
+document.getElementById('winMaximize').onclick=function(){document.getElementById('appWindow').classList.toggle('maximized')};
+document.getElementById('winMinimize').onclick=function(){document.getElementById('appWindow').classList.toggle('minimized')};
+
+// Drag
+(function(){var tb=document.getElementById('appWinTitlebar'),w=document.getElementById('appWindow'),drag=false,sx,sy,ox,oy;
+  tb.onmousedown=function(e){if(e.target.closest('.win-btn')||e.target.closest('.win-nav'))return;if(w.classList.contains('maximized'))return;drag=true;sx=e.clientX;sy=e.clientY;var r=w.getBoundingClientRect();ox=r.left;oy=r.top;w.style.transition='none';e.preventDefault()};
+  document.onmousemove=function(e){if(!drag)return;w.style.position='fixed';w.style.left=(ox+e.clientX-sx)+'px';w.style.top=(oy+e.clientY-sy)+'px';w.style.margin='0';w.style.transform='none'};
+  document.onmouseup=function(){if(drag){drag=false;w.style.transition=''}};
+})();
+</script>
+</body>
+</html>

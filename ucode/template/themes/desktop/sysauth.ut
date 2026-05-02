@@ -1,0 +1,316 @@
+{#
+	Desktop Theme for LuCI - Login Page
+	Copyright 2024-2026 LuCI Desktop Theme
+
+	Licensed to the public under the Apache License 2.0
+-#}
+
+{%
+	import { readfile } from 'fs';
+	import { cursor } from 'uci';
+
+	const boardinfo = ubus.call("system", "board");
+	const hostname = striptags(boardinfo?.hostname ?? '?');
+	const model = striptags(boardinfo?.model ?? 'OpenWrt');
+
+	http.prepare_content('text/html; charset=UTF-8');
+-%}
+<!DOCTYPE html>
+<html lang="{{ dispatcher.lang }}">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<title>{{ hostname }} - Login</title>
+	<meta name="robots" content="noindex, nofollow">
+	<meta name="theme-color" content="#0f1123">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<link rel="icon" type="image/x-icon" href="{{ media }}/favicon.ico">
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+	<style>
+		:root {
+			--bg-primary: #0f1123;
+			--accent-primary: #7c4dff;
+			--accent-secondary: #536dfe;
+			--text-primary: #e8eaf6;
+			--text-secondary: #9fa8da;
+			--text-muted: #7986cb;
+			--border-color: rgba(255,255,255,0.08);
+			--font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+		}
+		*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+		html, body {
+			height: 100%; width: 100%;
+			font-family: var(--font-family);
+			color: var(--text-primary);
+			background: var(--bg-primary);
+			-webkit-font-smoothing: antialiased;
+		}
+
+		.login-bg {
+			position: fixed; inset: 0;
+			background:
+				radial-gradient(ellipse at 30% 40%, rgba(124,77,255,0.2) 0%, transparent 50%),
+				radial-gradient(ellipse at 70% 60%, rgba(83,109,254,0.15) 0%, transparent 50%),
+				radial-gradient(ellipse at 50% 90%, rgba(105,240,174,0.08) 0%, transparent 50%),
+				linear-gradient(135deg, #0f1123 0%, #1a1b3a 50%, #0f1123 100%);
+			animation: bgPulse 20s ease-in-out infinite alternate;
+		}
+		@keyframes bgPulse {
+			0% { filter: hue-rotate(0deg) brightness(1); }
+			100% { filter: hue-rotate(20deg) brightness(1.05); }
+		}
+
+		.login-particles {
+			position: fixed; inset: 0;
+			overflow: hidden; pointer-events: none;
+		}
+		.particle {
+			position: absolute;
+			width: 4px; height: 4px;
+			border-radius: 50%;
+			background: rgba(124,77,255,0.3);
+			animation: float linear infinite;
+		}
+		@keyframes float {
+			0% { transform: translateY(100vh) scale(0); opacity: 0; }
+			10% { opacity: 1; }
+			90% { opacity: 1; }
+			100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+		}
+
+		.login-wrapper {
+			position: relative; z-index: 1;
+			display: flex; align-items: center; justify-content: center;
+			min-height: 100vh;
+			padding: 20px;
+		}
+
+		.login-card {
+			width: 100%; max-width: 420px;
+			background: rgba(22, 25, 52, 0.85);
+			backdrop-filter: blur(32px) saturate(180%);
+			-webkit-backdrop-filter: blur(32px) saturate(180%);
+			border: 1px solid var(--border-color);
+			border-radius: 24px;
+			padding: 48px 40px;
+			box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+			animation: cardIn 0.6s ease;
+		}
+		@keyframes cardIn {
+			from { opacity: 0; transform: translateY(30px) scale(0.96); }
+			to { opacity: 1; transform: translateY(0) scale(1); }
+		}
+
+		.login-logo {
+			width: 64px; height: 64px;
+			margin: 0 auto 24px;
+			background: linear-gradient(135deg, #7c4dff 0%, #536dfe 100%);
+			border-radius: 18px;
+			display: flex; align-items: center; justify-content: center;
+			font-size: 28px; color: #fff;
+			box-shadow: 0 4px 20px rgba(124,77,255,0.4);
+		}
+
+		.login-title {
+			text-align: center;
+			font-size: 24px; font-weight: 700;
+			margin-bottom: 6px;
+			background: linear-gradient(135deg, #e8eaf6, #7c4dff);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+		}
+		.login-subtitle {
+			text-align: center;
+			font-size: 14px;
+			color: var(--text-muted);
+			margin-bottom: 32px;
+		}
+		.login-model {
+			text-align: center;
+			font-size: 12px;
+			color: var(--text-muted);
+			margin-bottom: 24px;
+			opacity: 0.6;
+		}
+
+		.form-group { margin-bottom: 20px; }
+		.form-label {
+			display: block;
+			font-size: 13px; font-weight: 500;
+			color: var(--text-secondary);
+			margin-bottom: 8px;
+		}
+		.input-wrapper {
+			display: flex; align-items: center;
+			background: rgba(255,255,255,0.06);
+			border: 1px solid var(--border-color);
+			border-radius: 12px;
+			padding: 0 16px;
+			transition: all 0.25s ease;
+		}
+		.input-wrapper:focus-within {
+			border-color: var(--accent-primary);
+			box-shadow: 0 0 0 4px rgba(124,77,255,0.15);
+		}
+		.input-wrapper i {
+			color: var(--text-muted);
+			font-size: 16px; margin-right: 12px;
+		}
+		.input-wrapper input {
+			background: none; border: none; outline: none;
+			color: var(--text-primary);
+			font-size: 14px; font-family: var(--font-family);
+			padding: 14px 0; width: 100%;
+		}
+		.input-wrapper input::placeholder { color: var(--text-muted); }
+
+		.login-btn {
+			display: flex; align-items: center; justify-content: center;
+			width: 100%; padding: 14px;
+			border: none; border-radius: 12px;
+			background: linear-gradient(135deg, #7c4dff 0%, #536dfe 100%);
+			color: #fff; font-size: 15px; font-weight: 600;
+			font-family: var(--font-family);
+			cursor: pointer;
+			transition: all 0.25s ease;
+			box-shadow: 0 4px 16px rgba(124,77,255,0.3);
+			margin-top: 8px;
+		}
+		.login-btn:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 6px 24px rgba(124,77,255,0.45);
+		}
+		.login-btn:active { transform: translateY(0); }
+
+		.login-error {
+			background: rgba(255,82,82,0.12);
+			border: 1px solid rgba(255,82,82,0.3);
+			border-radius: 10px;
+			padding: 12px 16px;
+			margin-bottom: 20px;
+			display: flex; align-items: center; gap: 10px;
+			font-size: 13px; color: #ff5252;
+			animation: shake 0.4s ease;
+		}
+		@keyframes shake {
+			0%,100% { transform: translateX(0); }
+			25% { transform: translateX(-8px); }
+			75% { transform: translateX(8px); }
+		}
+
+		.login-footer {
+			text-align: center;
+			margin-top: 24px;
+			font-size: 12px;
+			color: var(--text-muted);
+			opacity: 0.6;
+		}
+
+		.login-clock {
+			position: fixed;
+			top: 40px; left: 0; right: 0;
+			text-align: center; z-index: 2;
+			pointer-events: none;
+		}
+		.login-clock-time {
+			font-size: 56px; font-weight: 200;
+			color: rgba(255,255,255,0.8);
+			letter-spacing: 4px;
+		}
+		.login-clock-date {
+			font-size: 16px;
+			color: rgba(255,255,255,0.4);
+			margin-top: 4px;
+		}
+	</style>
+</head>
+<body>
+	<div class="login-bg"></div>
+
+	<div class="login-particles" id="particles"></div>
+
+	<div class="login-clock">
+		<div class="login-clock-time" id="loginTime"></div>
+		<div class="login-clock-date" id="loginDate"></div>
+	</div>
+
+	<div class="login-wrapper">
+		<div class="login-card">
+			<div class="login-logo">
+				<i class="fas fa-cube"></i>
+			</div>
+			<h1 class="login-title">{{ hostname }}</h1>
+			<p class="login-subtitle">{{ _('Welcome back') }}</p>
+			<p class="login-model">{{ model }}</p>
+
+			{% if (duser == 'root' && fuser != null && fuser != 'root'): %}
+			<div class="login-error">
+				<i class="fas fa-exclamation-circle"></i>
+				<span>{{ _('Invalid username and/or password! Please try again.') }}</span>
+			</div>
+			{% endif %}
+
+			<form method="post" action="{{ dispatcher.build_url('admin') }}">
+				<div class="form-group">
+					<label class="form-label">{{ _('Username') }}</label>
+					<div class="input-wrapper">
+						<i class="fas fa-user"></i>
+						<input type="text" name="luci_username" value="{{ duser }}" placeholder="root" autocomplete="username" autofocus>
+					</div>
+				</div>
+				<div class="form-group">
+					<label class="form-label">{{ _('Password') }}</label>
+					<div class="input-wrapper">
+						<i class="fas fa-lock"></i>
+						<input type="password" name="luci_password" placeholder="••••••••" autocomplete="current-password">
+					</div>
+				</div>
+				<input type="hidden" name="token" value="{{ token }}">
+				<button type="submit" class="login-btn">
+					{{ _('Login') }}
+					<i class="fas fa-arrow-right" style="margin-left:8px"></i>
+				</button>
+			</form>
+
+			<div class="login-footer">
+				Powered by LuCI &bull; {{ version.distname }} {{ version.distversion }}
+			</div>
+		</div>
+	</div>
+
+	<script>
+	(function(){
+		// Clock
+		function updateClock() {
+			var now = new Date();
+			var h = now.getHours().toString().padStart(2,'0');
+			var m = now.getMinutes().toString().padStart(2,'0');
+			document.getElementById('loginTime').textContent = h + ':' + m;
+			var days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+			var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+			document.getElementById('loginDate').textContent =
+				days[now.getDay()] + ', ' + months[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear();
+		}
+		setInterval(updateClock, 1000);
+		updateClock();
+
+		// Particles
+		var container = document.getElementById('particles');
+		for (var i = 0; i < 30; i++) {
+			var p = document.createElement('div');
+			p.className = 'particle';
+			p.style.left = Math.random() * 100 + '%';
+			p.style.animationDuration = (8 + Math.random() * 15) + 's';
+			p.style.animationDelay = Math.random() * 10 + 's';
+			p.style.width = p.style.height = (2 + Math.random() * 4) + 'px';
+			p.style.opacity = 0.2 + Math.random() * 0.4;
+			container.appendChild(p);
+		}
+	})();
+	</script>
+</body>
+</html>
