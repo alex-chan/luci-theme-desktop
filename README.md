@@ -4,6 +4,8 @@
 
 Transform your OpenWrt router's web interface into a modern desktop-like operating system experience with window management, dock navigation, taskbar, and beautiful glassmorphism effects.
 
+![ScreenShot](./Screenshot.png)
+
 ## ✨ Features
 
 - **Desktop-style UI** — Full desktop environment with top bar, dock, window management, and taskbar
@@ -20,17 +22,18 @@ Transform your OpenWrt router's web interface into a modern desktop-like operati
 
 ## 📸 Design Highlights
 
-| Component | Description |
-|-----------|-------------|
-| Top Bar | System hostname, page breadcrumb, clock, user menu |
-| Left Dock | Collapsible sidebar with icon navigation |
-| Main Window | Glass-morphism window with titlebar |
-| Taskbar | Start menu, active apps, system tray, clock |
-| Login | Full-screen animated login with particles |
+| Component   | Description                                        |
+| ----------- | -------------------------------------------------- |
+| Top Bar     | System hostname, page breadcrumb, clock, user menu |
+| Left Dock   | Collapsible sidebar with icon navigation           |
+| Main Window | Glass-morphism window with titlebar                |
+| Taskbar     | Start menu, active apps, system tray, clock        |
+| Login       | Full-screen animated login with particles          |
 
 ## 🚀 Installation
 
 ### Build from source
+
 ```bash
 cd openwrt/package
 git clone https://github.com/your-repo/luci-theme-desktop.git
@@ -39,11 +42,13 @@ make -j$(nproc) V=s
 ```
 
 ### Install pre-built .ipk
+
 ```bash
 opkg install luci-theme-desktop_*.ipk
 ```
 
 ### Set as default theme
+
 The theme automatically sets itself as default on installation. You can also change it manually:
 
 **System → System → Language and Style → Design → desktop**
@@ -78,17 +83,17 @@ luci-theme-desktop/
 
 ## 🎨 Color Palette
 
-| Color | Hex | Usage |
-|-------|-----|-------|
-| Background | `#0f1123` | Main background |
-| Surface | `#1e2142` | Cards & panels |
-| Accent Primary | `#7c4dff` | Primary actions |
+| Color            | Hex       | Usage             |
+| ---------------- | --------- | ----------------- |
+| Background       | `#0f1123` | Main background   |
+| Surface          | `#1e2142` | Cards & panels    |
+| Accent Primary   | `#7c4dff` | Primary actions   |
 | Accent Secondary | `#536dfe` | Secondary actions |
-| Success | `#69f0ae` | Success states |
-| Warning | `#ffd740` | Warning states |
-| Error | `#ff5252` | Error states |
-| Text Primary | `#e8eaf6` | Main text |
-| Text Secondary | `#9fa8da` | Secondary text |
+| Success          | `#69f0ae` | Success states    |
+| Warning          | `#ffd740` | Warning states    |
+| Error            | `#ff5252` | Error states      |
+| Text Primary     | `#e8eaf6` | Main text         |
+| Text Secondary   | `#9fa8da` | Secondary text    |
 
 ## 🔧 Requirements
 
