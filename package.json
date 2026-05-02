@@ -1,0 +1,17 @@
+{
+  "name": "luci-theme-desktop",
+  "private": true,
+  "scripts": {
+    "e2e:install": "playwright install chromium",
+    "e2e:deploy": "bash deploy.sh",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "@types/node": "^22.10.0",
+    "dotenv": "^16.4.5"
+  }
+}

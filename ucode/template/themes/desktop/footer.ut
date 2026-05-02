@@ -35,6 +35,30 @@
 (function() {
 'use strict';
 
+/* LuCI has no L.ubus(); use rpc.declare() after L.require('rpc') */
+L.require('rpc').then(function(rpc) {
+	function makeUbusInvoke(r) {
+		var cache = {};
+		return function(object, method, argObj) {
+			var keys = [];
+			if (argObj != null && typeof argObj === 'object' && !Array.isArray(argObj))
+				keys = Object.keys(argObj).sort();
+			var ck = object + '\0' + method + '\0' + keys.join(',');
+			var fn = cache[ck];
+			if (!fn) {
+				var opts = { object: object, method: method };
+				if (keys.length)
+					opts.params = keys;
+				fn = r.declare(opts);
+				cache[ck] = fn;
+			}
+			if (keys.length)
+				return fn.apply(null, keys.map(function(k) { return argObj[k]; }));
+			return fn();
+		};
+	}
+	var ubus = makeUbusInvoke(rpc);
+
 /* ===== App Icon Definitions ===== */
 var APP_ICONS = {
 	'Status':       { icon: 'fas fa-chart-pie',        gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
@@ -93,7 +117,7 @@ function setBar(id, pct) { var e = document.getElementById(id); if (e) e.style.w
 /* ===== ubus API: System Board Info (once) ===== */
 function pollBoard() {
 	if (typeof L === 'undefined' || !L.resolveDefault) return;
-	L.resolveDefault(L.ubus('system', 'board'), {}).then(function(b) {
+	L.resolveDefault(ubus('system', 'board'), {}).then(function(b) {
 		if (!b) return;
 		setVal('dwModel', b.model || b.board_name || '--');
 		setVal('dwKernel', b.kernel || '--');
@@ -105,7 +129,7 @@ function pollBoard() {
 /* ===== ubus API: System Info (polling) ===== */
 function pollSysInfo() {
 	if (typeof L === 'undefined' || !L.resolveDefault) return;
-	L.resolveDefault(L.ubus('system', 'info'), {}).then(function(info) {
+	L.resolveDefault(ubus('system', 'info'), {}).then(function(info) {
 		if (!info) return;
 		// Memory
 		if (info.memory) {
@@ -143,7 +167,7 @@ function pollSysInfo() {
 /* ===== ubus API: Network Interfaces ===== */
 function pollNetwork() {
 	if (typeof L === 'undefined' || !L.resolveDefault) return;
-	L.resolveDefault(L.ubus('network.interface', 'dump'), {}).then(function(data) {
+	L.resolveDefault(ubus('network.interface', 'dump'), {}).then(function(data) {
 		var body = document.getElementById('dwNetworkBody');
 		if (!body || !data || !data.interface) return;
 		body.innerHTML = '';
@@ -166,12 +190,12 @@ function pollNetwork() {
 /* ===== ubus API: Conntrack ===== */
 function pollConntrack() {
 	if (typeof L === 'undefined' || !L.resolveDefault) return;
-	L.resolveDefault(L.ubus('luci', 'getConntrackCount'), {}).then(function(ct) {
+	L.resolveDefault(ubus('luci', 'getConntrackCount'), {}).then(function(ct) {
 		if (!ct) return;
 		setVal('dwConns', (ct.count || 0) + ' / ' + (ct.limit || '?'));
 	}).catch(function() {});
 	// TCP/UDP counts via /proc
-	L.resolveDefault(L.ubus('file', 'exec', {
+	L.resolveDefault(ubus('file', 'exec', {
 		command: '/bin/sh', params: ['-c',
 		'echo "$(grep -c tcp /proc/net/nf_conntrack 2>/dev/null || echo 0)|$(grep -c udp /proc/net/nf_conntrack 2>/dev/null || echo 0)"']
 	}), {}).then(function(r) {
@@ -186,7 +210,7 @@ function pollConntrack() {
 /* ===== ubus API: WiFi Clients ===== */
 function pollWifi() {
 	if (typeof L === 'undefined' || !L.resolveDefault) return;
-	L.resolveDefault(L.ubus('iwinfo', 'devices'), {}).then(function(devs) {
+	L.resolveDefault(ubus('iwinfo', 'devices'), {}).then(function(devs) {
 		var body = document.getElementById('dwWifiBody');
 		if (!body) return;
 		if (!devs || !devs.devices || !devs.devices.length) {
@@ -194,7 +218,7 @@ function pollWifi() {
 			return;
 		}
 		var promises = devs.devices.map(function(dev) {
-			return L.resolveDefault(L.ubus('iwinfo', 'info', { device: dev }), {});
+			return L.resolveDefault(ubus('iwinfo', 'info', { device: dev }), {});
 		});
 		Promise.all(promises).then(function(results) {
 			body.innerHTML = '';
@@ -202,7 +226,7 @@ function pollWifi() {
 				if (!info || !info.ssid) return;
 				var clients = 0;
 				// Get assoclist for client count
-				L.resolveDefault(L.ubus('iwinfo', 'assoclist', { device: devs.devices[i] }), {}).then(function(al) {
+				L.resolveDefault(ubus('iwinfo', 'assoclist', { device: devs.devices[i] }), {}).then(function(al) {
 					clients = (al && al.results) ? al.results.length : 0;
 					var freq = info.frequency ? (info.frequency > 4000 ? '5G' : '2.4G') : '';
 					body.innerHTML +=
@@ -220,7 +244,7 @@ function pollWifi() {
 /* ===== ubus API: DHCP Leases ===== */
 function pollDhcp() {
 	if (typeof L === 'undefined' || !L.resolveDefault) return;
-	L.resolveDefault(L.ubus('luci-rpc', 'getDHCPLeases'), {}).then(function(data) {
+	L.resolveDefault(ubus('luci-rpc', 'getDHCPLeases'), {}).then(function(data) {
 		var body = document.getElementById('dwDhcpBody');
 		if (!body) return;
 		var leases = (data && data.dhcp_leases) ? data.dhcp_leases : [];
@@ -246,7 +270,7 @@ function pollDhcp() {
 /* ===== ubus API: Storage (df) ===== */
 function pollStorage() {
 	if (typeof L === 'undefined' || !L.resolveDefault) return;
-	L.resolveDefault(L.ubus('file', 'exec', {
+	L.resolveDefault(ubus('file', 'exec', {
 		command: '/bin/df', params: ['-h']
 	}), {}).then(function(r) {
 		var body = document.getElementById('dwStorageBody');
@@ -273,7 +297,7 @@ function pollStorage() {
 var _prevCpu = null;
 function pollCpuUsage() {
 	if (typeof L === 'undefined' || !L.resolveDefault) return;
-	L.resolveDefault(L.ubus('file', 'read', { path: '/proc/stat' }), {}).then(function(r) {
+	L.resolveDefault(ubus('file', 'read', { path: '/proc/stat' }), {}).then(function(r) {
 		if (!r || !r.data) return;
 		var line = r.data.split('\n')[0]; // "cpu  user nice system idle ..."
 		var p = line.trim().split(/\s+/);
@@ -296,7 +320,7 @@ function pollCpuUsage() {
 /* ===== CPU Details (cores, freq) ===== */
 function pollCpuDetail() {
 	if (typeof L === 'undefined' || !L.resolveDefault) return;
-	L.resolveDefault(L.ubus('file', 'read', { path: '/proc/cpuinfo' }), {}).then(function(r) {
+	L.resolveDefault(ubus('file', 'read', { path: '/proc/cpuinfo' }), {}).then(function(r) {
 		if (!r || !r.data) return;
 		var lines = r.data.split('\n');
 		var cores = 0, freq = '';
@@ -309,7 +333,7 @@ function pollCpuDetail() {
 		if (freq) setVal('dwCpuFreq', freq);
 	}).catch(function() {});
 	// Also read scaling freq
-	L.resolveDefault(L.ubus('file', 'read', { path: '/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq' }), {}).then(function(r) {
+	L.resolveDefault(ubus('file', 'read', { path: '/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq' }), {}).then(function(r) {
 		if (r && r.data) {
 			var mhz = (parseInt(r.data.trim()) / 1000).toFixed(0);
 			setVal('dwCpuFreq', mhz + ' MHz');
@@ -320,7 +344,7 @@ function pollCpuDetail() {
 /* ===== CPU Temperature ===== */
 function pollTemp() {
 	if (typeof L === 'undefined' || !L.resolveDefault) return;
-	L.resolveDefault(L.ubus('file', 'read', { path: '/sys/class/thermal/thermal_zone0/temp' }), {}).then(function(r) {
+	L.resolveDefault(ubus('file', 'read', { path: '/sys/class/thermal/thermal_zone0/temp' }), {}).then(function(r) {
 		if (r && r.data) {
 			var temp = parseInt(r.data.trim());
 			if (temp > 1000) temp = (temp / 1000).toFixed(1);
@@ -333,7 +357,7 @@ function pollTemp() {
 var _prevBw = {};
 function pollBandwidth() {
 	if (typeof L === 'undefined' || !L.resolveDefault) return;
-	L.resolveDefault(L.ubus('network.interface', 'dump'), {}).then(function(data) {
+	L.resolveDefault(ubus('network.interface', 'dump'), {}).then(function(data) {
 		var body = document.getElementById('dwBandwidthBody');
 		if (!body || !data || !data.interface) return;
 		var now = Date.now();
@@ -362,7 +386,7 @@ function pollBandwidth() {
 /* ===== ARP / Neighbors ===== */
 function pollArp() {
 	if (typeof L === 'undefined' || !L.resolveDefault) return;
-	L.resolveDefault(L.ubus('luci-rpc', 'getHostHints'), {}).then(function(hosts) {
+	L.resolveDefault(ubus('luci-rpc', 'getHostHints'), {}).then(function(hosts) {
 		if (!hosts) return;
 		var keys = Object.keys(hosts);
 		setVal('dwArpTotal', keys.length);
@@ -383,7 +407,7 @@ function pollArp() {
 /* ===== Processes ===== */
 function pollProc() {
 	if (typeof L === 'undefined' || !L.resolveDefault) return;
-	L.resolveDefault(L.ubus('luci', 'getProcessList'), {}).then(function(data) {
+	L.resolveDefault(ubus('luci', 'getProcessList'), {}).then(function(data) {
 		if (data && data.result) {
 			setVal('dwProcTotal', data.result.length);
 			var running = 0, sleeping = 0;
@@ -396,7 +420,7 @@ function pollProc() {
 		}
 	}).catch(function() {
 		// fallback via /proc
-		L.resolveDefault(L.ubus('file', 'exec', { command: '/bin/sh', params: ['-c', 'echo "$(ls /proc/*/status 2>/dev/null | wc -l)|$(grep -c "State.*running" /proc/*/status 2>/dev/null || echo 0)"'] }), {}).then(function(r) {
+		L.resolveDefault(ubus('file', 'exec', { command: '/bin/sh', params: ['-c', 'echo "$(ls /proc/*/status 2>/dev/null | wc -l)|$(grep -c "State.*running" /proc/*/status 2>/dev/null || echo 0)"'] }), {}).then(function(r) {
 			if (r && r.stdout) {
 				var pp = r.stdout.trim().split('|');
 				setVal('dwProcTotal', pp[0] || '--');
@@ -409,7 +433,7 @@ function pollProc() {
 /* ===== Firewall (UCI) ===== */
 function pollFirewall() {
 	if (typeof L === 'undefined' || !L.resolveDefault) return;
-	L.resolveDefault(L.ubus('uci', 'get', { config: 'firewall' }), {}).then(function(data) {
+	L.resolveDefault(ubus('uci', 'get', { config: 'firewall' }), {}).then(function(data) {
 		if (!data || !data.values) return;
 		var zones = 0, fwd = 0, rules = 0, redirs = 0;
 		Object.keys(data.values).forEach(function(k) {
@@ -429,9 +453,9 @@ function pollFirewall() {
 /* ===== Routes ===== */
 function pollRoutes() {
 	if (typeof L === 'undefined' || !L.resolveDefault) return;
-	L.resolveDefault(L.ubus('network', 'get_proto_handlers'), {}).then(function(){}).catch(function(){});
+	L.resolveDefault(ubus('network', 'get_proto_handlers'), {}).then(function(){}).catch(function(){});
 	// IPv4 routes
-	L.resolveDefault(L.ubus('file', 'exec', { command: '/sbin/ip', params: ['-4', 'route', 'show'] }), {}).then(function(r) {
+	L.resolveDefault(ubus('file', 'exec', { command: '/sbin/ip', params: ['-4', 'route', 'show'] }), {}).then(function(r) {
 		if (r && r.stdout) {
 			var lines = r.stdout.trim().split('\n').filter(function(l){ return l.length > 0; });
 			setVal('dwRoutes4', lines.length);
@@ -445,7 +469,7 @@ function pollRoutes() {
 		}
 	}).catch(function() {});
 	// IPv6 routes
-	L.resolveDefault(L.ubus('file', 'exec', { command: '/sbin/ip', params: ['-6', 'route', 'show'] }), {}).then(function(r) {
+	L.resolveDefault(ubus('file', 'exec', { command: '/sbin/ip', params: ['-6', 'route', 'show'] }), {}).then(function(r) {
 		if (r && r.stdout) {
 			setVal('dwRoutes6', r.stdout.trim().split('\n').filter(function(l){ return l.length > 0; }).length);
 		}
@@ -455,7 +479,7 @@ function pollRoutes() {
 /* ===== NTP Status ===== */
 function pollNtp() {
 	if (typeof L === 'undefined' || !L.resolveDefault) return;
-	L.resolveDefault(L.ubus('uci', 'get', { config: 'system', type: 'timeserver' }), {}).then(function(data) {
+	L.resolveDefault(ubus('uci', 'get', { config: 'system', type: 'timeserver' }), {}).then(function(data) {
 		if (!data || !data.values) return;
 		var first = Object.keys(data.values)[0];
 		if (first && data.values[first]) {
@@ -470,7 +494,7 @@ function pollNtp() {
 /* ===== USB Devices ===== */
 function pollUsb() {
 	if (typeof L === 'undefined' || !L.resolveDefault) return;
-	L.resolveDefault(L.ubus('file', 'exec', { command: '/bin/sh', params: ['-c', 'ls /sys/bus/usb/devices/*/product 2>/dev/null | head -8'] }), {}).then(function(r) {
+	L.resolveDefault(ubus('file', 'exec', { command: '/bin/sh', params: ['-c', 'ls /sys/bus/usb/devices/*/product 2>/dev/null | head -8'] }), {}).then(function(r) {
 		var body = document.getElementById('dwUsbBody');
 		if (!body) return;
 		if (!r || !r.stdout || !r.stdout.trim()) {
@@ -478,7 +502,7 @@ function pollUsb() {
 			return;
 		}
 		var paths = r.stdout.trim().split('\n');
-		var readPromises = paths.map(function(p) { return L.resolveDefault(L.ubus('file', 'read', { path: p }), {}); });
+		var readPromises = paths.map(function(p) { return L.resolveDefault(ubus('file', 'read', { path: p }), {}); });
 		Promise.all(readPromises).then(function(results) {
 			body.innerHTML = '<div class="dw-row"><span class="dw-label">Devices</span><span class="dw-value">' + results.length + '</span></div>';
 			results.forEach(function(rd) {
@@ -494,7 +518,7 @@ function pollUsb() {
 /* ===== System Log (last lines) ===== */
 function pollSyslog() {
 	if (typeof L === 'undefined' || !L.resolveDefault) return;
-	L.resolveDefault(L.ubus('file', 'exec', { command: '/sbin/logread', params: ['-l', '8'] }), {}).then(function(r) {
+	L.resolveDefault(ubus('file', 'exec', { command: '/sbin/logread', params: ['-l', '8'] }), {}).then(function(r) {
 		var body = document.getElementById('dwLogBody');
 		if (!body) return;
 		if (!r || !r.stdout) { body.innerHTML = '<div class="dw-row"><span class="dw-label" style="opacity:.5">Empty</span></div>'; return; }
@@ -785,6 +809,7 @@ if (winMin && appWin) {
 	}, 200);
 })();
 
+}); /* L.require('rpc') */
 })();
 </script>
 <script type="text/javascript">L.require('menu-desktop')</script>
