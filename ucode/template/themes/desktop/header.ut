@@ -221,6 +221,8 @@
 			</div>
 		</div>
 	</div>
+	<!-- Stacked LuCI views (desktop only; each opens in an iframe) -->
+	<div class="desktop-window-stack" id="desktopWindowStack"></div>
 	{% endif %}
 
 	<!-- ===== App Window (shown on sub-pages) ===== -->

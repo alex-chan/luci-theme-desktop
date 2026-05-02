@@ -100,20 +100,6 @@ var ADMIN_SEG_TO_ICON_KEY = {
 	'package-manager': 'Software', 'opkg': 'Software'
 };
 
-/* Same order & intent as preview.html — merge with real LuCI menu (translated titles) where paths match */
-var SHOWCASE_APPS = [
-	{ name: 'Status', path: 'admin/status/overview', hints: ['/admin/status/', 'status/overview'] },
-	{ name: 'System', path: 'admin/system/system', hints: ['/admin/system/system', '/admin/system/admin', '/system/system'] },
-	{ name: 'Network', path: 'admin/network/network', hints: ['/admin/network/network', '/admin/network/interfaces', '/network/interfaces'] },
-	{ name: 'Firewall', path: 'admin/network/firewall', hints: ['/network/firewall', '/nftables', '/admin/firewall'] },
-	{ name: 'Services', path: 'admin/services', hints: ['/admin/services'] },
-	{ name: 'Docker', path: 'admin/docker', hints: ['/admin/docker'] },
-	{ name: 'NAS', path: 'admin/nas', hints: ['/admin/nas', '/nas/'] },
-	{ name: 'VPN', path: 'admin/vpn', hints: ['/admin/vpn', '/wireguard', '/openvpn'] },
-	{ name: 'Software', path: 'admin/system/opkg', hints: ['/system/opkg', '/package-manager', 'opkg'] },
-	{ name: 'Diagnostics', path: 'admin/network/diagnostics', hints: ['/diagnostics', '/network/diag', 'network/diagnostics', '/status/diagnostic'] }
-];
-
 function adminPathSegment(href) {
 	if (!href || href === '#') return '';
 	try {
@@ -154,43 +140,6 @@ function showcaseUrl(path) {
 	return '/cgi-bin/luci/' + path.replace(/^\//, '');
 }
 
-function hrefMatchesShowcaseHints(href, hints) {
-	if (!href || href === '#' || href.charAt(0) === '#') return false;
-	var h = href.toLowerCase();
-	for (var i = 0; i < hints.length; i++) {
-		if (h.indexOf(hints[i].toLowerCase()) >= 0) return true;
-	}
-	return false;
-}
-
-/* preview.html order + extras from LuCI not in the list */
-function mergeShowcaseWithMenu(menuItems) {
-	var taken = {};
-	var merged = [];
-	for (var s = 0; s < SHOWCASE_APPS.length; s++) {
-		var sc = SHOWCASE_APPS[s];
-		var idx = -1;
-		for (var i = 0; i < menuItems.length; i++) {
-			if (taken[i]) continue;
-			if (hrefMatchesShowcaseHints(menuItems[i].href, sc.hints)) {
-				idx = i;
-				break;
-			}
-		}
-		if (idx >= 0) {
-			merged.push(menuItems[idx]);
-			taken[idx] = true;
-		} else {
-			merged.push({ name: sc.name, href: showcaseUrl(sc.path), active: false });
-		}
-	}
-	for (var j = 0; j < menuItems.length; j++) {
-		if (taken[j]) continue;
-		merged.push(menuItems[j]);
-	}
-	return merged;
-}
-
 function setDockItemsActiveByLocation(items) {
 	var p = (window.location.pathname || '').split('?')[0];
 	var best = -1, bestLen = 0;
@@ -208,6 +157,155 @@ function setDockItemsActiveByLocation(items) {
 		}
 	});
 	items.forEach(function(it, i) { it.active = (i === best); });
+}
+
+/* ===== Desktop: multi-window (iframe) + dock click capture ===== */
+var _deskWinZ = 80;
+function deskNormalizePath(href) {
+	if (!href) return '';
+	try {
+		var p = href.split('?')[0];
+		if (p.indexOf('://') >= 0) p = new URL(p).pathname;
+		else if (p.charAt(0) !== '/') p = new URL(p, window.location.origin).pathname;
+		return p.replace(/\/$/, '') || p;
+	} catch (e) { return href; }
+}
+
+function syncDockOpenIndicators() {
+	var stack = document.getElementById('desktopWindowStack');
+	if (!stack) return;
+	var prefixes = [];
+	stack.querySelectorAll('.desk-win-frame').forEach(function(fr) {
+		var u = deskNormalizePath(fr.getAttribute('src') || '');
+		if (u) prefixes.push(u);
+	});
+	document.querySelectorAll('#dockContainer a.dock-icon').forEach(function(a) {
+		var dh = deskNormalizePath(a.getAttribute('href') || '');
+		var on = false;
+		if (dh) {
+			for (var i = 0; i < prefixes.length; i++) {
+				var fp = prefixes[i];
+				if (fp === dh || fp.indexOf(dh + '/') === 0 || dh.indexOf(fp + '/') === 0) {
+					on = true;
+					break;
+				}
+			}
+		}
+		a.classList.toggle('has-open-window', on);
+	});
+}
+
+function bringDeskWinToFront(winEl) {
+	_deskWinZ += 2;
+	winEl.style.zIndex = String(_deskWinZ);
+}
+
+(function() {
+	var deskDragState = null;
+	document.addEventListener('mousemove', function(e) {
+		if (!deskDragState) return;
+		deskDragState.win.style.left = (deskDragState.ox + e.clientX - deskDragState.sx) + 'px';
+		deskDragState.win.style.top = (deskDragState.oy + e.clientY - deskDragState.sy) + 'px';
+	});
+	document.addEventListener('mouseup', function() {
+		if (deskDragState) {
+			deskDragState.win.style.transition = '';
+			deskDragState = null;
+		}
+	});
+	window._desktopStartDeskDrag = function(win, e) {
+		if (win.classList.contains('desk-win-maximized')) return;
+		bringDeskWinToFront(win);
+		var r = win.getBoundingClientRect();
+		deskDragState = { win: win, sx: e.clientX, sy: e.clientY, ox: r.left, oy: r.top };
+		win.style.transition = 'none';
+		e.preventDefault();
+	};
+})();
+
+function openDesktopWindow(href, title) {
+	var stack = document.getElementById('desktopWindowStack');
+	if (!stack || !href || href === '#') return;
+	var abs;
+	try {
+		abs = href.indexOf('://') >= 0 ? href : new URL(href, window.location.origin).href;
+	} catch (e) { return; }
+	var n = stack.querySelectorAll('.desk-win').length;
+	var win = document.createElement('div');
+	win.className = 'desk-win';
+	win.setAttribute('tabindex', '-1');
+	var ox = 40 + (n % 6) * 28;
+	var oy = 36 + (n % 6) * 24;
+	win.style.left = ox + 'px';
+	win.style.top = oy + 'px';
+	bringDeskWinToFront(win);
+
+	var tb = document.createElement('div');
+	tb.className = 'desk-win-titlebar app-win-titlebar';
+	tb.innerHTML =
+		'<div class="win-traffic-lights">' +
+		'<span class="win-btn win-close desk-win-close" role="button" tabindex="0" title="Close"></span>' +
+		'<span class="win-btn win-minimize desk-win-min" role="button" tabindex="0" title="Minimize"></span>' +
+		'<span class="win-btn win-maximize desk-win-max" role="button" tabindex="0" title="Maximize"></span>' +
+		'</div>' +
+		'<div class="win-title desk-win-title"></div>';
+	tb.querySelector('.desk-win-title').textContent = title || 'LuCI';
+
+	var frame = document.createElement('iframe');
+	frame.className = 'desk-win-frame';
+	frame.setAttribute('title', title || 'LuCI');
+	frame.setAttribute('src', abs);
+
+	win.appendChild(tb);
+	win.appendChild(frame);
+	stack.appendChild(win);
+
+	frame.addEventListener('load', syncDockOpenIndicators);
+
+	tb.querySelector('.desk-win-close').addEventListener('click', function(e) {
+		e.preventDefault();
+		e.stopPropagation();
+		win.remove();
+		syncDockOpenIndicators();
+	});
+	tb.querySelector('.desk-win-min').addEventListener('click', function(e) {
+		e.preventDefault();
+		win.classList.toggle('desk-win-minimized');
+	});
+	tb.querySelector('.desk-win-max').addEventListener('click', function(e) {
+		e.preventDefault();
+		win.classList.toggle('desk-win-maximized');
+	});
+
+	tb.addEventListener('mousedown', function(e) {
+		if (e.target.closest('.win-btn')) return;
+		if (typeof window._desktopStartDeskDrag === 'function')
+			window._desktopStartDeskDrag(win, e);
+	});
+	win.addEventListener('mousedown', function() { bringDeskWinToFront(win); });
+
+	syncDockOpenIndicators();
+}
+
+function ensureDesktopAppLaunchCapture() {
+	if (window._desktopAppLaunchBound) return;
+	window._desktopAppLaunchBound = true;
+	document.addEventListener('click', function(e) {
+		if (!document.body.classList.contains('is-desktop')) return;
+		if (e.ctrlKey || e.metaKey || e.button !== 0) return;
+		var a = e.target.closest('a.dock-icon, a.desktop-app');
+		if (!a) return;
+		var href = a.getAttribute('href');
+		if (!href || href === '#' || href.charAt(0) === '#') return;
+		e.preventDefault();
+		e.stopPropagation();
+		var title = a.getAttribute('title') || '';
+		if (!title) {
+			var nm = a.querySelector('.desktop-app-name');
+			if (nm) title = nm.textContent.trim();
+		}
+		openDesktopWindow(href, title);
+	}, true);
 }
 
 /* ===== Clock ===== */
@@ -739,9 +837,20 @@ function buildUI() {
 	})();
 
 	function fallbackDockItems() {
-		return SHOWCASE_APPS.map(function(sc, i) {
-			return { name: sc.name, href: showcaseUrl(sc.path), active: i === 0 };
-		});
+		if (typeof L !== 'undefined' && typeof L.url === 'function') {
+			return [
+				{ name: 'Status', href: L.url('admin/status/overview'), active: false },
+				{ name: 'System', href: L.url('admin/system/system'), active: false },
+				{ name: 'Network', href: L.url('admin/network/network'), active: false },
+				{ name: 'Services', href: L.url('admin/services'), active: false }
+			];
+		}
+		return [
+			{ name: 'Status', href: '/cgi-bin/luci/admin/status/overview', active: false },
+			{ name: 'System', href: '/cgi-bin/luci/admin/system/system', active: false },
+			{ name: 'Network', href: '/cgi-bin/luci/admin/network/network', active: false },
+			{ name: 'Services', href: '/cgi-bin/luci/admin/services', active: false }
+		];
 	}
 
 	var allHash = items.length && items.every(function(i) { return !i.href || i.href === '#' || i.href.charAt(0) === '#'; });
@@ -757,30 +866,24 @@ function buildUI() {
 		_dockBuildAttempts = 0;
 	}
 
-	items = mergeShowcaseWithMenu(items);
-	(function() {
-		var seen = {};
-		items = items.filter(function(it) {
-			var h = it.href || '';
-			if (!h || h === '#' || h.charAt(0) === '#') return true;
-			if (seen[h]) return false;
-			seen[h] = true;
-			return true;
-		});
-	})();
-	setDockItemsActiveByLocation(items);
+	if (!isDesktop)
+		setDockItemsActiveByLocation(items);
 
-	// Build dock
+	// Build dock (icons = LuCI top-level menu only, no synthetic showcase entries)
 	dockContainer.innerHTML = '';
 	items.forEach(function(item) {
 		var style = getAppStyleForItem(item.name, item.href);
 		var el = document.createElement('a');
-		el.className = 'dock-icon' + (item.active ? ' active' : '');
+		el.className = 'dock-icon' + ((!isDesktop && item.active) ? ' active' : '');
 		el.href = item.href;
 		el.title = item.name;
 		el.innerHTML = '<div class="dock-icon-img" style="background:' + style.gradient + '"><i class="' + style.icon + '"></i></div>';
 		dockContainer.appendChild(el);
 	});
+	if (isDesktop) {
+		ensureDesktopAppLaunchCapture();
+		syncDockOpenIndicators();
+	}
 
 	// Build desktop grid icons
 	if (isDesktop && desktopGrid) {
