@@ -18,9 +18,14 @@
 	let cfg = cursor();
 	http.prepare_content('text/html; charset=UTF-8');
 
-	// Determine if we're on the root/overview page (show desktop icons) or a sub-page (show window)
+	// Desktop shell: admin landing + status overview. join() may omit a leading slash.
 	const pathStr = join('/', ctx.request_path);
-	const isDesktop = (pathStr == '/admin' || pathStr == '/admin/' || pathStr == '/admin/status' || pathStr == '/admin/status/overview');
+	const isDesktop = (
+		pathStr == '/admin' || pathStr == '/admin/' || pathStr == '/admin/status' || pathStr == '/admin/status/overview' ||
+		pathStr == '/admin/status/overview/' ||
+		pathStr == 'admin' || pathStr == 'admin/status' || pathStr == 'admin/status/overview' ||
+		pathStr == 'admin/status/overview/'
+	);
 -%}
 <!DOCTYPE html>
 <html lang="{{ dispatcher.lang }}">

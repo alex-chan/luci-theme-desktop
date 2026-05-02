@@ -9,6 +9,7 @@
   --bar-h: 32px; --dock-h: 72px;
   --sidebar-pill: rgba(255,255,255,0.1);
   --sidebar-active: linear-gradient(135deg,rgba(155,132,255,.35),rgba(124,148,255,.22));
+  --sidebar-accent-line: #c4b5fd;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;width:100%;font-family:var(--font);font-size:14px;line-height:1.5;color:var(--text);background:var(--bg);overflow:hidden;-webkit-font-smoothing:antialiased}
@@ -42,7 +43,7 @@ a{color:var(--accent2);text-decoration:none;transition:color var(--tr)}a:hover{c
 .welcome-sub{font-size:14px;color:var(--text3);font-weight:400}
 @keyframes fadeIn{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
 
-.desktop-grid{display:grid;grid-template-columns:repeat(auto-fit,100px);gap:12px 24px;justify-content:center;max-width:700px;animation:fadeIn .6s ease .1s both}
+.desktop-grid{display:grid;grid-template-columns:repeat(auto-fit,100px);gap:14px 22px;justify-content:center;max-width:960px;animation:fadeIn .6s ease .1s both}
 .desktop-app{display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 8px;border-radius:var(--r);cursor:pointer;transition:all var(--tr);text-decoration:none}
 .desktop-app:hover{background:rgba(255,255,255,.12);transform:translateY(-4px)}
 .desktop-app:active{transform:scale(.95)}
@@ -102,28 +103,24 @@ a{color:var(--accent2);text-decoration:none;transition:color var(--tr)}a:hover{c
 
 /* Window Body */
 .app-win-body{flex:1;display:flex;overflow:hidden}
-.app-win-sidebar{width:220px;background:linear-gradient(180deg,rgba(255,255,255,.08) 0%,rgba(255,255,255,.03) 100%);border-right:1px solid var(--border);overflow-y:auto;flex-shrink:0;padding:12px 10px 16px;box-shadow:inset -1px 0 0 rgba(255,255,255,.06)}
-.win-sidebar-title{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text3);letter-spacing:.1em;padding:8px 14px 10px;margin:4px 0 6px;border-bottom:1px solid rgba(255,255,255,.08);opacity:.95}
-.app-win-sidebar .l2{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:2px}
-/* —— LuCI .l2: first sidebar level —— */
-.app-win-sidebar .l2 > li > a{display:block;padding:10px 14px;border-radius:11px;color:var(--text2);font-size:13px;font-weight:500;transition:background var(--tr),color var(--tr),box-shadow var(--tr),transform .15s ease;margin-bottom:0;border:1px solid transparent;line-height:1.35}
-.app-win-sidebar .l2 > li > a:hover{background:var(--sidebar-pill);color:var(--text);border-color:rgba(255,255,255,.08);box-shadow:0 2px 12px rgba(30,40,90,.2);transform:translateX(2px)}
-/* Group row: has nested .l3 (smaller label + rule under title) */
-.app-win-sidebar .l2 > li:has(> .l3) > a{font-size:12px;font-weight:600;color:var(--text);letter-spacing:.02em;padding:9px 14px 6px;border-radius:10px 10px 4px 4px;opacity:.9}
-.app-win-sidebar .l2 > li:has(> .l3) > a::after{content:'';display:block;margin-top:6px;height:1px;background:linear-gradient(90deg,rgba(155,132,255,.4),transparent 85%);border-radius:1px}
-.app-win-sidebar .l2 > li:has(> .l3) > a:hover{opacity:1}
-/* Current page is this row (leaf, or parent link with no child item selected) */
+.app-win-sidebar{width:236px;background:linear-gradient(165deg,rgba(255,255,255,.11) 0%,rgba(255,255,255,.04) 45%,rgba(20,28,72,.2) 100%);border-right:1px solid var(--border);overflow-y:auto;flex-shrink:0;padding:16px 12px 20px 14px;box-shadow:inset -1px 0 0 rgba(255,255,255,.07),4px 0 24px rgba(20,24,60,.12)}
+.win-sidebar-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;padding:6px 4px 14px;margin:0 2px 12px;background:linear-gradient(90deg,var(--sidebar-accent-line),rgba(196,181,253,.25),transparent) 0 100%/100% 2px no-repeat;color:var(--text);opacity:.92;text-shadow:0 1px 12px rgba(155,132,255,.25)}
+.app-win-sidebar .l2{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:4px}
+/* preview.html-style rows: soft pill + left accent on active */
+.app-win-sidebar .l2 > li > a{display:block;padding:11px 14px 11px 12px;border-radius:12px;color:var(--text2);font-size:13px;font-weight:500;transition:background var(--tr),color var(--tr),box-shadow var(--tr),border-color var(--tr),transform .18s ease;margin:0;border:1px solid rgba(255,255,255,.06);border-left:3px solid transparent;line-height:1.38;background:rgba(255,255,255,.04)}
+.app-win-sidebar .l2 > li > a:hover{background:rgba(255,255,255,.1);color:var(--text);border-color:rgba(255,255,255,.12);transform:translateX(3px);box-shadow:0 4px 20px rgba(30,40,100,.18)}
+/* Group heading (has nested menu) */
+.app-win-sidebar .l2 > li:has(> .l3) > a{font-size:12px;font-weight:600;color:var(--text);letter-spacing:.03em;background:rgba(155,132,255,.08);border-color:rgba(155,132,255,.15);padding-bottom:8px;border-radius:12px 12px 6px 6px}
+.app-win-sidebar .l2 > li:has(> .l3) > a::after{display:none}
+/* Active leaf / parent that is the page */
 .app-win-sidebar .l2 > li.active:not(:has(.l3)) > a,
-.app-win-sidebar .l2 > li.active:has(.l3):not(:has(.l3 > li.active)) > a{background:var(--sidebar-active);color:var(--text);border-color:rgba(155,132,255,.35);box-shadow:0 0 0 1px rgba(155,132,255,.2),0 4px 18px rgba(90,80,200,.18);font-weight:600;opacity:1}
-.app-win-sidebar .l2 > li.active:has(.l3):not(:has(.l3 > li.active)) > a::after{opacity:.35}
-/* Open group: a child in .l3 is current — parent stays a faint band */
-.app-win-sidebar .l2 > li.active:has(.l3 > li.active) > a{background:rgba(155,132,255,.1);color:var(--text2);border-color:rgba(155,132,255,.18);box-shadow:none;font-weight:600;opacity:1}
-.app-win-sidebar .l2 > li.active:has(.l3 > li.active) > a::after{background:linear-gradient(90deg,rgba(155,132,255,.55),transparent 90%)}
-/* —— Nested .l3: indent + vertical rail —— */
-.app-win-sidebar .l3{list-style:none;margin:0 0 10px;padding:2px 0 4px 0;padding-left:11px;margin-left:13px;border-left:2px solid rgba(155,132,255,.28);display:flex;flex-direction:column;gap:1px;position:relative}
-.app-win-sidebar .l3 > li > a{display:block;padding:7px 12px 7px 10px;border-radius:8px;color:var(--text3);font-size:12px;font-weight:450;line-height:1.4;border:1px solid transparent;transition:background var(--tr),color var(--tr),transform .15s ease}
-.app-win-sidebar .l3 > li > a:hover{background:rgba(255,255,255,.08);color:var(--text2);transform:translateX(3px);border-color:rgba(255,255,255,.06)}
-.app-win-sidebar .l3 > li.active > a{background:linear-gradient(135deg,rgba(155,132,255,.28),rgba(124,148,255,.14));color:var(--text);border-color:rgba(155,132,255,.3);font-weight:600;box-shadow:0 1px 8px rgba(60,50,140,.12)}
+.app-win-sidebar .l2 > li.active:has(.l3):not(:has(.l3 > li.active)) > a{background:var(--sidebar-active);color:var(--text);border-color:rgba(155,132,255,.4);border-left-color:var(--sidebar-accent-line);font-weight:600;box-shadow:0 4px 22px rgba(90,70,200,.22),inset 0 1px 0 rgba(255,255,255,.12)}
+.app-win-sidebar .l2 > li.active:has(.l3 > li.active) > a{background:rgba(155,132,255,.12);color:var(--text2);border-left-color:rgba(155,132,255,.5);font-weight:600;box-shadow:none}
+/* Nested .l3 */
+.app-win-sidebar .l3{list-style:none;margin:2px 0 12px;padding:6px 0 8px 12px;margin-left:10px;border-left:2px solid rgba(196,181,253,.35);display:flex;flex-direction:column;gap:3px}
+.app-win-sidebar .l3 > li > a{display:block;padding:8px 12px;border-radius:10px;color:var(--text3);font-size:12px;font-weight:500;line-height:1.4;border:1px solid rgba(255,255,255,.05);border-left:2px solid transparent;background:rgba(0,0,0,.06);transition:background var(--tr),color var(--tr),transform .15s ease}
+.app-win-sidebar .l3 > li > a:hover{background:rgba(255,255,255,.09);color:var(--text2);transform:translateX(4px)}
+.app-win-sidebar .l3 > li.active > a{background:linear-gradient(135deg,rgba(155,132,255,.32),rgba(124,148,255,.15));color:var(--text);border-color:rgba(155,132,255,.28);border-left-color:var(--sidebar-accent-line);font-weight:600;box-shadow:0 2px 14px rgba(60,50,140,.15)}
 .desktop-menu-host{position:absolute;left:-9999px;top:0;width:1px;height:1px;margin:0;padding:0;overflow:hidden;clip:rect(0,0,0,0);border:0;visibility:hidden;pointer-events:none}
 .app-win-content{flex:1;overflow-y:auto;overflow-x:hidden}
 .app-win-content > .container{padding:24px}

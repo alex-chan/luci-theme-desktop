@@ -6,7 +6,12 @@
 {%
 	// Must match header.ut (footer is compiled/rendered separately)
 	const pathStr = join('/', ctx.request_path);
-	const isDesktop = (pathStr == '/admin' || pathStr == '/admin/' || pathStr == '/admin/status' || pathStr == '/admin/status/overview');
+	const isDesktop = (
+		pathStr == '/admin' || pathStr == '/admin/' || pathStr == '/admin/status' || pathStr == '/admin/status/overview' ||
+		pathStr == '/admin/status/overview/' ||
+		pathStr == 'admin' || pathStr == 'admin/status' || pathStr == 'admin/status/overview' ||
+		pathStr == 'admin/status/overview/'
+	);
 -%}
 	{% if (!isDesktop): %}
 					</div><!-- /.container -->
@@ -95,6 +100,20 @@ var ADMIN_SEG_TO_ICON_KEY = {
 	'package-manager': 'Software', 'opkg': 'Software'
 };
 
+/* Same order & intent as preview.html — merge with real LuCI menu (translated titles) where paths match */
+var SHOWCASE_APPS = [
+	{ name: 'Status', path: 'admin/status/overview', hints: ['/admin/status/', 'status/overview'] },
+	{ name: 'System', path: 'admin/system/system', hints: ['/admin/system/system', '/admin/system/admin', '/system/system'] },
+	{ name: 'Network', path: 'admin/network/network', hints: ['/admin/network/network', '/admin/network/interfaces', '/network/interfaces'] },
+	{ name: 'Firewall', path: 'admin/network/firewall', hints: ['/network/firewall', '/nftables', '/admin/firewall'] },
+	{ name: 'Services', path: 'admin/services', hints: ['/admin/services'] },
+	{ name: 'Docker', path: 'admin/docker', hints: ['/admin/docker'] },
+	{ name: 'NAS', path: 'admin/nas', hints: ['/admin/nas', '/nas/'] },
+	{ name: 'VPN', path: 'admin/vpn', hints: ['/admin/vpn', '/wireguard', '/openvpn'] },
+	{ name: 'Software', path: 'admin/system/opkg', hints: ['/system/opkg', '/package-manager', 'opkg'] },
+	{ name: 'Diagnostics', path: 'admin/network/diagnostics', hints: ['/diagnostics', '/network/diag', 'network/diagnostics', '/status/diagnostic'] }
+];
+
 function adminPathSegment(href) {
 	if (!href || href === '#') return '';
 	try {
@@ -127,6 +146,68 @@ function resolveTopLevelMenuItem(li, a) {
 			return { name: name, href: h, active: li.classList.contains('active') };
 	}
 	return { name: name, href: href || '#', active: li.classList.contains('active') };
+}
+
+function showcaseUrl(path) {
+	if (typeof L !== 'undefined' && typeof L.url === 'function')
+		return L.url(path);
+	return '/cgi-bin/luci/' + path.replace(/^\//, '');
+}
+
+function hrefMatchesShowcaseHints(href, hints) {
+	if (!href || href === '#' || href.charAt(0) === '#') return false;
+	var h = href.toLowerCase();
+	for (var i = 0; i < hints.length; i++) {
+		if (h.indexOf(hints[i].toLowerCase()) >= 0) return true;
+	}
+	return false;
+}
+
+/* preview.html order + extras from LuCI not in the list */
+function mergeShowcaseWithMenu(menuItems) {
+	var taken = {};
+	var merged = [];
+	for (var s = 0; s < SHOWCASE_APPS.length; s++) {
+		var sc = SHOWCASE_APPS[s];
+		var idx = -1;
+		for (var i = 0; i < menuItems.length; i++) {
+			if (taken[i]) continue;
+			if (hrefMatchesShowcaseHints(menuItems[i].href, sc.hints)) {
+				idx = i;
+				break;
+			}
+		}
+		if (idx >= 0) {
+			merged.push(menuItems[idx]);
+			taken[idx] = true;
+		} else {
+			merged.push({ name: sc.name, href: showcaseUrl(sc.path), active: false });
+		}
+	}
+	for (var j = 0; j < menuItems.length; j++) {
+		if (taken[j]) continue;
+		merged.push(menuItems[j]);
+	}
+	return merged;
+}
+
+function setDockItemsActiveByLocation(items) {
+	var p = (window.location.pathname || '').split('?')[0];
+	var best = -1, bestLen = 0;
+	items.forEach(function(it, i) {
+		var href = it.href || '';
+		if (!href || href === '#') return;
+		var path = href.split('?')[0];
+		try {
+			if (path.indexOf('://') >= 0) path = new URL(path).pathname;
+			else if (path.charAt(0) !== '/') path = new URL(path, window.location.origin).pathname;
+		} catch (err) { return; }
+		if (path && (p === path || p.indexOf(path) === 0) && path.length > bestLen) {
+			bestLen = path.length;
+			best = i;
+		}
+	});
+	items.forEach(function(it, i) { it.active = (i === best); });
 }
 
 /* ===== Clock ===== */
@@ -658,20 +739,9 @@ function buildUI() {
 	})();
 
 	function fallbackDockItems() {
-		if (typeof L !== 'undefined' && typeof L.url === 'function') {
-			return [
-				{ name: 'Status', href: L.url('admin/status/overview'), active: true },
-				{ name: 'System', href: L.url('admin/system/system'), active: false },
-				{ name: 'Network', href: L.url('admin/network/network'), active: false },
-				{ name: 'Services', href: L.url('admin/services'), active: false }
-			];
-		}
-		return [
-			{ name: 'Status', href: '/cgi-bin/luci/admin/status/overview', active: true },
-			{ name: 'System', href: '/cgi-bin/luci/admin/system/system', active: false },
-			{ name: 'Network', href: '/cgi-bin/luci/admin/network/network', active: false },
-			{ name: 'Services', href: '/cgi-bin/luci/admin/services', active: false }
-		];
+		return SHOWCASE_APPS.map(function(sc, i) {
+			return { name: sc.name, href: showcaseUrl(sc.path), active: i === 0 };
+		});
 	}
 
 	var allHash = items.length && items.every(function(i) { return !i.href || i.href === '#' || i.href.charAt(0) === '#'; });
@@ -686,6 +756,19 @@ function buildUI() {
 	} else {
 		_dockBuildAttempts = 0;
 	}
+
+	items = mergeShowcaseWithMenu(items);
+	(function() {
+		var seen = {};
+		items = items.filter(function(it) {
+			var h = it.href || '';
+			if (!h || h === '#' || h.charAt(0) === '#') return true;
+			if (seen[h]) return false;
+			seen[h] = true;
+			return true;
+		});
+	})();
+	setDockItemsActiveByLocation(items);
 
 	// Build dock
 	dockContainer.innerHTML = '';
@@ -741,13 +824,14 @@ var winMin = document.getElementById('winMinimize');
 var appWin = document.getElementById('appWindow');
 var winClose = document.querySelector('a.win-close');
 if (winClose) {
-	/* Capture: LuCI may intercept same-origin <a>; corner resize handle used to steal clicks */
+	/* Capture: LuCI may intercept <a>; use resolved URL so relative href still hits overview */
 	winClose.addEventListener('click', function(e) {
-		var href = winClose.getAttribute('href');
-		if (!href || href === '#') return;
 		e.preventDefault();
 		e.stopImmediatePropagation();
-		window.location.assign(href);
+		var url = winClose.href || winClose.getAttribute('href');
+		if (!url || url === '#') return;
+		/* Full document load → server renders is-desktop (wallpaper + dock), not app chrome */
+		window.location.replace(url);
 	}, true);
 }
 
