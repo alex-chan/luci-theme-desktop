@@ -6,14 +6,19 @@
 {%
 	// Must match header.ut (footer is compiled/rendered separately)
 	const pathStr = join('/', ctx.request_path);
-	const isDesktop = (
+	const qs = http.getenv('QUERY_STRING') ?? '';
+	const isEmbed = (index(qs, '__deskwin') >= 0);
+	const isDesktop = !isEmbed && (
 		pathStr == '/admin' || pathStr == '/admin/' || pathStr == '/admin/status' || pathStr == '/admin/status/overview' ||
 		pathStr == '/admin/status/overview/' ||
 		pathStr == 'admin' || pathStr == 'admin/status' || pathStr == 'admin/status/overview' ||
 		pathStr == 'admin/status/overview/'
 	);
 -%}
-	{% if (!isDesktop): %}
+	{% if (isEmbed): %}
+		</div><!-- /.container -->
+	</div><!-- /.embed-content -->
+	{% elseif (!isDesktop): %}
 					</div><!-- /.container -->
 				</div><!-- /.app-win-content -->
 			</div><!-- /.app-win-body -->
@@ -22,11 +27,13 @@
 	{% endif %}
 
 	<!-- ===== Bottom Dock ===== -->
+	{% if (!isEmbed): %}
 	<div class="dock" id="dock">
 		<div class="dock-container" id="dockContainer">
 			<!-- Populated by JS -->
 		</div>
 	</div>
+	{% endif %}
 
 	<!-- Hidden footer for LuCI compat -->
 	<footer style="display:none">
@@ -36,6 +43,7 @@
 		<ul class="breadcrumb pull-right" id="modemenu" style="display:none"></ul>
 	</footer>
 
+{% if (!isEmbed): %}
 <script>
 (function() {
 'use strict';
@@ -311,8 +319,10 @@ function openDesktopWindow(href, title) {
 	var frame = document.createElement('iframe');
 	frame.className = 'desk-win-frame';
 	frame.setAttribute('title', winTitle);
+	var ts = Date.now();
+	frame.setAttribute('name', 'deskwin_' + ts);
 	var sep = abs.indexOf('?') >= 0 ? '&' : '?';
-	frame.setAttribute('src', abs + sep + '__deskwin=' + Date.now());
+	frame.setAttribute('src', abs + sep + '__deskwin=' + ts);
 
 	win.appendChild(tb);
 	win.appendChild(frame);
@@ -1190,6 +1200,7 @@ while (_pendingDesktopOpen.length)
 		initTheme();
 })();
 </script>
+{% endif %}
 <script type="text/javascript">L.require('menu-desktop')</script>
 </body>
 </html>

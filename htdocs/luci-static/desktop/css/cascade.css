@@ -306,3 +306,10 @@ html.theme-light .ifacebox-head{background:rgba(0,0,0,.04)}
 html.theme-light .modal,html.theme-light .cbi-modal{box-shadow:0 12px 40px rgba(40,50,100,.2)!important}
 html.theme-light .desk-win{box-shadow:0 16px 48px rgba(40,50,100,.18)}
 html.theme-light .desk-win-frame{background:#f3f5fb}
+
+/* ===== Embed mode (iframe inside desktop window) ===== */
+body.is-embed{overflow:auto!important;background:var(--bg)}
+body.is-embed .wallpaper{display:none}
+body.is-embed #mainmenu{display:none!important}
+.embed-content{min-height:100vh;padding:0}
+.embed-content>.container{padding:24px}

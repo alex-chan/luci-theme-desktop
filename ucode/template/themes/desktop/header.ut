@@ -20,7 +20,9 @@
 
 	// Desktop shell: admin landing + status overview. join() may omit a leading slash.
 	const pathStr = join('/', ctx.request_path);
-	const isDesktop = (
+	const qs = http.getenv('QUERY_STRING') ?? '';
+	const isEmbed = (index(qs, '__deskwin') >= 0);
+	const isDesktop = !isEmbed && (
 		pathStr == '/admin' || pathStr == '/admin/' || pathStr == '/admin/status' || pathStr == '/admin/status/overview' ||
 		pathStr == '/admin/status/overview/' ||
 		pathStr == 'admin' || pathStr == 'admin/status' || pathStr == 'admin/status/overview' ||
@@ -84,7 +86,7 @@
 	</script>
 	<script src="{{ resource }}/luci.js?v={{ version.luciversion }}"></script>
 </head>
-<body class="lang_{{ dispatcher.lang }} {% if (isDesktop): %}is-desktop{% else %}is-app{% endif %} {% if (ctx.authsession): %}logged-in{% endif %}"
+<body class="lang_{{ dispatcher.lang }} {% if (isEmbed): %}is-embed{% elseif (isDesktop): %}is-desktop{% else %}is-app{% endif %} {% if (ctx.authsession): %}logged-in{% endif %}"
 	data-page="{{ entityencode(join('-', ctx.request_path), true) }}"
 	data-hostname="{{ hostname }}"
 	data-model="{{ model }}">
@@ -93,6 +95,7 @@
 	<div class="wallpaper" id="wallpaper"></div>
 
 	<!-- ===== Top Status Bar ===== -->
+	{% if (!isEmbed): %}
 	<div class="status-bar">
 		<div class="status-bar-left">
 			<div class="sb-logo"><i class="fas fa-cube"></i></div>
@@ -112,6 +115,7 @@
 			<a class="sb-item sb-user" id="sbLogout" href="{{ dispatcher.build_url('admin/logout') }}" title="{{ _('Logout') }}"><i class="fas fa-power-off" aria-hidden="true"></i></a>
 		</div>
 	</div>
+	{% endif %}
 
 	<!-- ===== Desktop Icons Area (shown on desktop/overview) ===== -->
 	{% if (isDesktop): %}
@@ -253,8 +257,13 @@
 	<div class="desktop-window-stack" id="desktopWindowStack"></div>
 	{% endif %}
 
-	<!-- ===== App Window (shown on sub-pages) ===== -->
+	<!-- ===== App Window (shown on sub-pages / embed) ===== -->
 	{% if (!isDesktop): %}
+	{% if (isEmbed): %}
+	<div id="mainmenu" style="display:none"></div>
+	<div class="embed-content" id="maincontent">
+		<div class="container">
+	{% else %}
 	<div class="app-window-container" id="appWindowContainer">
 		<div class="app-window" id="appWindow">
 			<!-- Resize Handles (8 directions) -->
@@ -284,6 +293,7 @@
 				</div>
 				<div class="app-win-content" id="maincontent">
 					<div class="container">
+	{% endif %}
 						{% if (getuid() == 0 && getspnam('root')?.pwdp === ''): %}
 						<div class="alert-msg alert-warning">
 							<i class="fas fa-exclamation-triangle alert-icon"></i>
