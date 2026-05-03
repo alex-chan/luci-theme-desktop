@@ -84,6 +84,40 @@ L.require('rpc').then(function(rpc) {
 	}
 	var ubus = makeUbusInvoke(rpc);
 
+	/* Switch luci.main.mediaurlbase to server-computed fallback (header.ut: luci.themes.Bootstrap or first non-desktop). */
+	(function initFallbackLuciSwitch() {
+		var btn = document.getElementById('sbFallbackLuci');
+		if (!btn) return;
+		btn.addEventListener('click', function() {
+			var msg = btn.getAttribute('data-confirm-msg') || 'Switch to fallback LuCI theme?';
+			if (!window.confirm(msg)) return;
+			var target = (btn.getAttribute('data-fallback-media') || '').trim();
+			if (!target) target = '/luci-static/bootstrap';
+			var overview = (typeof L !== 'undefined' && typeof L.url === 'function')
+				? L.url('admin/status/overview')
+				: '/cgi-bin/luci/admin/status/overview';
+			Promise.resolve()
+				.then(function() {
+					return ubus('uci', 'set', {
+						config: 'luci',
+						section: 'main',
+						values: { mediaurlbase: target }
+					});
+				})
+				.then(function() { return ubus('uci', 'commit', { config: 'luci' }); })
+				.then(function() {
+					return ubus('service', 'restart', { name: 'uhttpd' }).catch(function() {
+						return ubus('service', 'reload', { name: 'uhttpd' }).catch(function() { return null; });
+					});
+				})
+				.then(function() { window.location.href = overview; })
+				.catch(function(err) {
+					console.error(err);
+					window.alert(err && err.message ? err.message : String(err));
+				});
+		});
+	})();
+
 /* ===== App Icon Definitions ===== */
 var APP_ICONS = {
 	'Status':       { icon: 'fas fa-chart-pie',        gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },

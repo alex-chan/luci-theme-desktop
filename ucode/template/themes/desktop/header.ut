@@ -7,7 +7,7 @@
 -#}
 
 {%
-	import { readfile, access } from 'fs';
+	import { readfile, access, basename } from 'fs';
 	import { cursor } from 'uci';
 	import { getuid, getspnam } from 'luci.core';
 
@@ -29,6 +29,28 @@
 		pathStr == 'admin/status/overview/'
 	);
 	const bodyModeClass = isEmbed ? 'is-embed' : (isDesktop ? 'is-desktop' : 'is-app');
+
+	/* Same idea as luci-base runtime.uc: prefer Bootstrap, else first installed theme path that is not desktop. */
+	let fallbackMedia = '/luci-static/bootstrap';
+	{
+		const themes = cfg.get_all('luci', 'themes');
+		if (themes) {
+			if (themes.Bootstrap != null && type(themes.Bootstrap) == 'string' && themes.Bootstrap != '')
+				fallbackMedia = themes.Bootstrap;
+			else {
+				for (let k, v in themes) {
+					if (substr(k, 0, 1) == '.')
+						continue;
+					if (type(v) != 'string' || v == '')
+						continue;
+					if (basename(v) == 'desktop')
+						continue;
+					fallbackMedia = v;
+					break;
+				}
+			}
+		}
+	}
 -%}
 <!DOCTYPE html>
 <html lang="{{ dispatcher.lang }}">
@@ -113,6 +135,11 @@
 			<div class="sb-item sb-widget" id="sbMem" title="Memory"><i class="fas fa-memory"></i><span id="memVal">--%</span></div>
 			<div class="sb-item sb-clock" id="sbClock"></div>
 			<button type="button" class="sb-item sb-theme-toggle" id="sbThemeToggle" aria-pressed="false" title="{{ _('Toggle light/dark theme') }}"><i class="fas fa-sun" aria-hidden="true"></i></button>
+			<button type="button" class="sb-item sb-fallback-luci" id="sbFallbackLuci" title="{{ _('Switch to fallback LuCI theme') }}"
+				data-fallback-media="{{ entityencode(fallbackMedia, true) }}"
+				data-confirm-msg="{{ entityencode(_('Switch to the fallback LuCI theme? The page will reload. You can enable the desktop theme again under System → Language and Style → Design.'), true) }}">
+				<i class="fas fa-table" aria-hidden="true"></i>
+			</button>
 			<a class="sb-item sb-user" id="sbLogout" href="{{ dispatcher.build_url('admin/logout') }}" title="{{ _('Logout') }}"><i class="fas fa-power-off" aria-hidden="true"></i></a>
 		</div>
 	</div>

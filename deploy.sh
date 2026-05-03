@@ -18,7 +18,8 @@ echo "📂 Creating directories..."
 ssh root@$ROUTER "mkdir -p \
     /www/luci-static/desktop/css \
     /www/luci-static/resources \
-    /usr/share/ucode/luci/template/themes/desktop"
+    /usr/share/ucode/luci/template/themes/desktop \
+    /usr/share/rpcd/acl.d"
 
 # Deploy CSS
 echo "🎨 Deploying CSS..."
@@ -35,6 +36,10 @@ scp -O -q "$SRC/htdocs/luci-static/resources/menu-desktop.js" root@$ROUTER:/www/
 # Deploy templates
 echo "📄 Deploying templates..."
 scp -O -q "$SRC/ucode/template/themes/desktop/"*.ut root@$ROUTER:/usr/share/ucode/luci/template/themes/desktop/
+
+# RPC ACL (fallback theme: uci set/commit + uhttpd restart)
+echo "🔐 Deploying rpcd ACL..."
+scp -O -q "$SRC/root/usr/share/rpcd/acl.d/luci-theme-desktop.json" root@$ROUTER:/usr/share/rpcd/acl.d/
 
 # Set as default theme + restart services
 echo "⚙️  Setting default theme..."

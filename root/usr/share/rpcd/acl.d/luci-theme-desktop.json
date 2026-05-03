@@ -1,6 +1,6 @@
 {
 	"luci-mod-status-index": {
-		"description": "LuCI Desktop theme: extend status overview RPC (newer luci-base methods)",
+		"description": "LuCI Desktop theme: status overview RPC + UCI luci (fallback theme switch)",
 		"read": {
 			"ubus": {
 				"luci": [
@@ -8,6 +8,13 @@
 					"getTempInfo",
 					"getConntrackCount"
 				]
+			}
+		},
+		"write": {
+			"uci": ["dhcp", "luci"],
+			"ubus": {
+				"uci": ["set", "commit"],
+				"service": ["restart", "reload"]
 			}
 		}
 	}
